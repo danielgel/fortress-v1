@@ -1,7 +1,47 @@
 package game.navigation;
 
 public class Position {
-    public int getX() { return 0; } // Placeholder
-    public int getY() { return 0; } // Placeholder
-    public int getZ() { return 0; } // Placeholder
+    private double x = 0;
+    private double y = 0;
+    private double z = 0;
+
+    public Position() {
+    }
+
+    public Position(double x, double y) {
+        this.x = x;
+        this.y = y;
+    }
+
+    public Position(double x, double y, double z) {
+        this.x = x;
+        this.y = y;
+        this.z = z;
+    }
+
+    public double getX() {
+        return x;
+    }
+
+    public Position setX(double x) {
+        this.x = x;
+        return this;
+    }
+
+    public double getY() {
+        return y;
+    }
+
+    public Position setY(double y) {
+        this.y = y;
+        return this;
+    }
+
+    public double getZ() {
+        return z;
+    }
+
+    public void setZ(double z) {
+        this.z = z;
+    }
 }

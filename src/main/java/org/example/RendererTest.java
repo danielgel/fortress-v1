@@ -4,11 +4,13 @@ package org.example;
 import core.engine.display.TerminalRenderer;
 import entities.EntityType;
 
+import java.io.IOException;
+
 /**
  * Simple test for the renderer
  */
 class RendererTest {
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         // Create a renderer with 80x25 characters
         TerminalRenderer renderer = new TerminalRenderer(80, 25);
 

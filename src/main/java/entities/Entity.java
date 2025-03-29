@@ -2,10 +2,11 @@ package entities;
 
 
 import core.time.TimeTickListener;
-import entities.entity.components.Component;
-import entities.entity.components.ComponentType;
+import entities.components.Component;
+import entities.components.ComponentType;
 import game.navigation.Position;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 
@@ -16,13 +17,19 @@ public abstract class Entity implements TimeTickListener {
     private UUID id;
     private EntityType type;
     private Position position;
-    private Map<ComponentType, Component> components;
+    private Map<ComponentType, Component> components = new HashMap<>();
+
+    public Entity(EntityType type) {
+        id = UUID.randomUUID();
+        this.type = type;
+    }
 
     public Entity(UUID uuid, EntityType type) {
         id = uuid;
+        this.type = type;
     }
 
-    public UUID getId(){
+    public UUID getId() {
         return id;
     }
 
@@ -43,10 +50,15 @@ public abstract class Entity implements TimeTickListener {
     }
 
     public Position getPosition() {
-        return new Position(); // Placeholder
+        return position;
     }
 
     public String getType() {
-        return EntityType.DWARF.name(); // Placeholder
+        return type.name();
+    }
+
+    public Entity setPosition(Position position) {
+        this.position = position;
+        return this;
     }
 }

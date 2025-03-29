@@ -7,6 +7,7 @@ package entities;
 
 import core.time.TimeTickListener;
 import entities.impl.Dwarf;
+import entities.impl.Monster;
 
 import java.util.HashMap;
 import java.util.List;
@@ -17,10 +18,8 @@ import java.util.UUID;
  * Manages all entities in the game
  */
 public class EntityManager implements TimeTickListener {
-    private HashMap<UUID, Entity> allEntities;
-    private HashMap<EntityType, List<Entity>> entitiesByType;
-
-    private Map<EntityType, Entity> entityTypeClassMap = new HashMap<>();
+    private HashMap<UUID, Entity> allEntities = new HashMap<>();
+    private HashMap<EntityType, List<Entity>> entitiesByType = new HashMap<>();
 
     @Override
     public void onTimeTick(long deltaTime) {
@@ -29,9 +28,14 @@ public class EntityManager implements TimeTickListener {
 
     private void updateEntities(long deltaTime) {
         // Process entities based on priority
+        updatePlayer(deltaTime);
         updateDwarves(deltaTime);
         updateCreatures(deltaTime);
         updateItems(deltaTime);
+    }
+
+    private void updatePlayer(long deltaTime) {
+
     }
 
     private void updateItems(long deltaTime) {
@@ -47,11 +51,10 @@ public class EntityManager implements TimeTickListener {
     }
 
     public Entity createEntity(EntityType type) {
-        entityTypeClassMap.get(type)
-        Entity entity = new Entity(UUID.randomUUID(), type);
-        allEntities.put(entity.getId(), entity);
-        entitiesByType.get(type).add(entity);
-        return entity;
+        Entity newEntity = getEntityByType(type);
+        allEntities.put(newEntity.getId(), newEntity);
+//        entitiesByType.get(type).add(newEntity);
+        return newEntity;
     }
 
 
@@ -77,6 +80,7 @@ public class EntityManager implements TimeTickListener {
             case ANIMAL -> {
             }
             case MONSTER -> {
+                return new Monster();
             }
             case ITEM -> {
             }
@@ -91,5 +95,6 @@ public class EntityManager implements TimeTickListener {
             case FORGE -> {
             }
         }
+        return null;
     }
 }

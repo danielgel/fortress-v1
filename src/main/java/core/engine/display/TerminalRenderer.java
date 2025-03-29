@@ -1,6 +1,13 @@
 package core.engine.display;
 
 
+import com.googlecode.lanterna.graphics.TextGraphics;
+import com.googlecode.lanterna.screen.Screen;
+import com.googlecode.lanterna.screen.TerminalScreen;
+import com.googlecode.lanterna.terminal.DefaultTerminalFactory;
+import com.googlecode.lanterna.terminal.Terminal;
+import com.googlecode.lanterna.terminal.swing.SwingTerminal;
+import com.googlecode.lanterna.terminal.swing.SwingTerminalFrame;
 import core.engine.tiles.TileMaterial;
 import entities.Entity;
 import entities.EntityType;
@@ -8,6 +15,7 @@ import game.navigation.Position;
 import game.world.Tile;
 import game.world.World;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -91,10 +99,20 @@ public class TerminalRenderer {
     // Symbol mappings for game entities
     private Map<EntityType, AsciiSymbol> symbolMap;
 
+    private Terminal terminal;
+    private Screen screen;
+
     /**
      * Creates a new terminal renderer with the specified dimensions
      */
-    public TerminalRenderer(int width, int height) {
+    public TerminalRenderer(int width, int height) throws IOException {
+
+        terminal = new DefaultTerminalFactory().createTerminal();
+        terminal.enterPrivateMode();
+        terminal.setCursorVisible(false);
+        screen = new TerminalScreen(terminal);
+        screen.startScreen();
+
         this.width = width;
         this.height = height;
         this.buffer = new AsciiTile[height][width];
@@ -299,7 +317,7 @@ public class TerminalRenderer {
      * Convert world coordinates to screen coordinates
      */
     public int[] worldToScreen(int worldX, int worldY) {
-        return new int[] {
+        return new int[]{
                 worldX - viewportX,
                 worldY - viewportY
         };
@@ -309,7 +327,7 @@ public class TerminalRenderer {
      * Convert screen coordinates to world coordinates
      */
     public int[] screenToWorld(int screenX, int screenY) {
-        return new int[] {
+        return new int[]{
                 screenX + viewportX,
                 screenY + viewportY
         };
@@ -318,34 +336,45 @@ public class TerminalRenderer {
     /**
      * Render the current buffer to the terminal
      */
-    public void render() {
+    public void render() throws IOException {
         // Clear the screen and move cursor to home position
         clearScreen();
-
+        TextGraphics textGraphics = screen.newTextGraphics();
         StringBuilder frame = new StringBuilder();
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 AsciiTile tile = buffer[y][x];
-                frame.append(tile.getForeground())
-                        .append(tile.getBackground())
-                        .append(tile.getSymbol());
+                textGraphics.setCharacter(x,y, tile.getSymbol());
+//                frame.append(tile.getForeground())
+//                        .append(tile.getBackground())
+//                        .append(tile.getSymbol());
             }
-            frame.append(RESET).append("\n");
+//            frame.append(RESET).append("\n");
         }
 
-        System.out.print(frame.toString());
+//        textGraphics.putString(0, 0, frame.toString());
+        screen.refresh(Screen.RefreshType.DELTA);
+//        terminal.flush();
+//        terminal.putCharacter('c');
+//        terminal.putString(frame.toString());
+//        System.out.print(frame.toString());
     }
 
-    private static void clearScreen() {
-        System.out.print(CLEAR + HOME + HIDE_CURSOR);
+    private void clearScreen() throws IOException {
+//        System.out.print(CLEAR + HOME + HIDE_CURSOR);
+            screen.clear();
+//        terminal.clearScreen();
     }
 
     /**
      * Clean up resources when done
      */
-    public void shutdown() {
-        System.out.print(RESET + CLEAR + HOME + SHOW_CURSOR);
+    public void shutdown() throws IOException {
+        screen.stopScreen();
+        terminal.exitPrivateMode();
+//        System.out.print(RESET + CLEAR + HOME + SHOW_CURSOR);
+
     }
 
     /**
@@ -403,8 +432,8 @@ public class TerminalRenderer {
                     pos.getZ() == world.getCurrentZ()) {
 
                 // Convert world coordinates to screen coordinates
-                int screenX = pos.getX() - viewportX;
-                int screenY = pos.getY() - viewportY;
+                int screenX = (int) pos.getX() - viewportX;
+                int screenY = (int) pos.getY() - viewportY;
 
                 // Render the entity
                 setTile(screenX, screenY, getEntityTypeForEntity(entity));
