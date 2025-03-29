@@ -2,8 +2,8 @@ package entities;
 
 
 import core.time.TimeTickListener;
-import entities.components.Component;
-import entities.components.ComponentType;
+import entities.entity.components.Component;
+import entities.entity.components.ComponentType;
 import game.navigation.Position;
 
 import java.util.Map;
@@ -12,7 +12,7 @@ import java.util.UUID;
 /**
  * Base class for all game objects (dwarves, creatures, items, etc.)
  */
-public class Entity implements TimeTickListener {
+public abstract class Entity implements TimeTickListener {
     private UUID id;
     private EntityType type;
     private Position position;
