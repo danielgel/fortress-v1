@@ -99,8 +99,8 @@ public class TerminalRenderer {
     // Symbol mappings for game entities
     private Map<EntityType, AsciiSymbol> symbolMap;
 
-    private Terminal terminal;
-    private Screen screen;
+//    private Terminal terminal;
+//    private Screen screen;
 
     /**
      * Creates a new terminal renderer with the specified dimensions

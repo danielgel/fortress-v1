@@ -27,11 +27,15 @@ public class GameEngine {
     private JobManager jobManager;
 
     // Game state variables
-    private boolean isPaused;
+    private boolean paused;
     private int gameSpeed; // 1=normal, 2=fast, 3=super fast
 
     public void initialize() {
         // Initialize all subsystems
+    }
+
+    public boolean isPaused() {
+        return paused;
     }
 
     public void start() {
@@ -40,11 +44,11 @@ public class GameEngine {
     }
 
     public void pause() {
-        isPaused = true;
+        paused = true;
     }
 
     public void resume() {
-        isPaused = false;
+        paused = false;
     }
 
     public void setGameSpeed(int speed) {
