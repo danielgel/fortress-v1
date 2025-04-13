@@ -107,11 +107,11 @@ public class TerminalRenderer {
      */
     public TerminalRenderer(int width, int height) throws IOException {
 
-        terminal = new DefaultTerminalFactory().createTerminal();
-        terminal.enterPrivateMode();
-        terminal.setCursorVisible(false);
-        screen = new TerminalScreen(terminal);
-        screen.startScreen();
+//        terminal = new DefaultTerminalFactory().createTerminal();
+//        terminal.enterPrivateMode();
+//        terminal.setCursorVisible(false);
+//        screen = new TerminalScreen(terminal);
+//        screen.startScreen();
 
         this.width = width;
         this.height = height;
@@ -339,31 +339,31 @@ public class TerminalRenderer {
     public void render() throws IOException {
         // Clear the screen and move cursor to home position
         clearScreen();
-        TextGraphics textGraphics = screen.newTextGraphics();
+//        TextGraphics textGraphics = screen.newTextGraphics();
         StringBuilder frame = new StringBuilder();
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
                 AsciiTile tile = buffer[y][x];
-                textGraphics.setCharacter(x,y, tile.getSymbol());
-//                frame.append(tile.getForeground())
-//                        .append(tile.getBackground())
-//                        .append(tile.getSymbol());
+//                textGraphics.setCharacter(x,y, tile.getSymbol());
+                frame.append(tile.getForeground())
+                        .append(tile.getBackground())
+                        .append(tile.getSymbol());
             }
-//            frame.append(RESET).append("\n");
+            frame.append(RESET).append("\n");
         }
 
 //        textGraphics.putString(0, 0, frame.toString());
-        screen.refresh(Screen.RefreshType.DELTA);
+//        screen.refresh(Screen.RefreshType.DELTA);
 //        terminal.flush();
 //        terminal.putCharacter('c');
 //        terminal.putString(frame.toString());
-//        System.out.print(frame.toString());
+        System.out.print(frame.toString());
     }
 
     private void clearScreen() throws IOException {
-//        System.out.print(CLEAR + HOME + HIDE_CURSOR);
-            screen.clear();
+        System.out.print(CLEAR + HOME + HIDE_CURSOR);
+//            screen.clear();
 //        terminal.clearScreen();
     }
 
@@ -371,9 +371,9 @@ public class TerminalRenderer {
      * Clean up resources when done
      */
     public void shutdown() throws IOException {
-        screen.stopScreen();
-        terminal.exitPrivateMode();
-//        System.out.print(RESET + CLEAR + HOME + SHOW_CURSOR);
+//        screen.stopScreen();
+//        terminal.exitPrivateMode();
+        System.out.print(RESET + CLEAR + HOME + SHOW_CURSOR);
 
     }
 
