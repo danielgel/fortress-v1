@@ -4,22 +4,11 @@ import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import core.engine.display.LibGDXRenderer;
-import core.events.EventManager;
-import core.time.TimeTickManager;
-import entities.EntityManager;
-import game.dwarfs.jobs.JobManager;
 import game.world.World;
-import game.world.WorldManager;
-import game.world.generator.WorldGenerationParameters;
 
 public class GameController extends ApplicationAdapter {
     // Core game systems
     private GameEngine gameEngine;
-    private TimeTickManager timeManager;
-    private WorldManager worldManager;
-    private EntityManager entityManager;
-    private EventManager eventManager;
-    private JobManager jobManager;
 
     // Rendering
     private LibGDXRenderer renderer;
@@ -32,22 +21,14 @@ public class GameController extends ApplicationAdapter {
     private float accumulatedTime = 0;
     private final float UPDATE_STEP = 1 / 60f; // 60 updates per second
 
-    private int worldWidth = 100;
-    private int worldHeight = 100;
-    private int worldDepth = 10;
-
-
     @Override
     public void create() {
         // Initialize game systems
         initializeGameSystems();
 
-        // Set up initial game state
-        generateNewWorld();
-
         // Create the renderer
-        renderer = new LibGDXRenderer(80, 25);
-        renderer.create(); // Initialize LibGDX rendering components
+        renderer = new LibGDXRenderer(80, 24);
+        renderer.initializeRenderingComponents(); // Initialize LibGDX rendering components
 
 
         // Start the game
@@ -77,7 +58,7 @@ public class GameController extends ApplicationAdapter {
     public void dispose() {
         // Clean up resources
         renderer.dispose();
-        timeManager.shutdown();
+        gameEngine.dispose();
     }
 
     private void initializeGameSystems() {
@@ -85,26 +66,6 @@ public class GameController extends ApplicationAdapter {
         gameEngine = new GameEngine();
         gameEngine.initialize();
 
-        // Get references to the subsystems
-        timeManager = gameEngine.getTimeManager();
-        worldManager = gameEngine.getWorldManager();
-        entityManager = gameEngine.getEntityManager();
-        eventManager = gameEngine.getEventManager();
-        jobManager = gameEngine.getJobManager();
-    }
-
-    private void generateNewWorld() {
-        if (!worldGenerated) {
-            // Generate a new game world
-            WorldGenerationParameters params = new WorldGenerationParameters();
-            // Configure world generation parameters
-            params.setWidth(worldWidth);
-            params.setHeight(worldHeight);
-            params.setDepth(worldHeight);
-
-            worldManager.generateNewWorld(params);
-            worldGenerated = true;
-        }
     }
 
     private void update(float deltaTime) {
@@ -116,6 +77,7 @@ public class GameController extends ApplicationAdapter {
         handleInput();
 
         // Update game systems
+        gameEngine.update(deltaTime);
         // Note: Most updates are triggered by the TimeTickManager
         // This just ensures smooth rendering between ticks
     }
@@ -127,11 +89,11 @@ public class GameController extends ApplicationAdapter {
         }
 
         // Arrow key movement (for camera or player)
-        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
-            // Handle up movement
+        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+            gameEngine.changeDepth(1);
         }
-        if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
-            // Handle down movement
+        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+            gameEngine.changeDepth(-1);
         }
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
             // Handle left movement
@@ -164,12 +126,11 @@ public class GameController extends ApplicationAdapter {
         renderer.clear();
 
         // Render the world
-        World world = worldManager.getWorld();
+        World world = gameEngine.getWorldManager().getWorld();
+        renderer.prepareRender();
         if (world != null) {
-            renderer.prepareRender();
             renderer.renderWorld(world);
-            renderer.renderEntities(entityManager.getVisibleEntities(), world);
-            renderer.endRender();
+            renderer.renderEntities(gameEngine.getEntityManager().getVisibleEntities(), world);
         }
 
         // Render UI elements
@@ -177,6 +138,7 @@ public class GameController extends ApplicationAdapter {
 
         // Trigger the actual rendering
         // This is handled internally by LibGDX
+        renderer.endRender();
     }
 
     private void renderUI() {
@@ -190,5 +152,6 @@ public class GameController extends ApplicationAdapter {
         // Display pause status
         String statusText = gameEngine.isPaused() ? "PAUSED" : "RUNNING";
         renderer.drawString(4, 5, statusText, gameEngine.isPaused() ? "RED" : "GREEN", "BG_BLACK");
+        renderer.drawString(4,6,"CURRENT HEIGHT: "+ gameEngine.getWorldManager().getWorld().getCurrentZ(), "GREEN", "BG_BLACK");
     }
 }

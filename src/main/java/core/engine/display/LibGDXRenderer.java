@@ -41,8 +41,8 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
     private AsciiTile[][] buffer;
 
     // Viewport settings (for scrolling around a larger world)
-    private int viewportX;
-    private int viewportY;
+    private int viewportX = 0;
+    private int viewportY = 0;
     private int viewportWidth;
     private int viewportHeight;
 
@@ -73,33 +73,8 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
         }
     }
 
-    private void initializeSample() {
 
-        // Draw a simple dungeon layout
-        for (int y = 0; y < 25; y++) {
-            for (int x = 0; x < 80; x++) {
-                if (x == 0 || y == 0 || x == 79 || y == 24) {
-                    setTile(x, y, EntityType.WALL);
-                } else {
-                    setTile(x, y, EntityType.FLOOR);
-                }
-            }
-        }
-
-        // Add some features
-        setTile(10, 10, EntityType.DWARF);
-        setTile(15, 12, EntityType.MONSTER);
-        setTile(20, 8, EntityType.STAIRS_DOWN);
-        setTile(40, 15, EntityType.WATER);
-
-        // Draw a status box
-        drawBox(2, 2, 20, 5, "Status", TerminalRenderer.WHITE, TerminalRenderer.BG_BLACK);
-        drawString(4, 4, "Health: 100%", TerminalRenderer.GREEN, TerminalRenderer.BG_BLACK);
-
-    }
-
-//    @Override
-    public void create() {
+    public void initializeRenderingComponents() {
         // Initialize LibGDX components
         batch = new SpriteBatch();
         shapeRenderer = new ShapeRenderer();
@@ -116,15 +91,6 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
         glyphLayout = new GlyphLayout();
 
         preRenderInitialization();
-//        initializeSample();
-
-
-        // Initialize game engine and time manager
-//        gameEngine = new GameEngine();
-//        gameEngine.initialize();
-
-//        timeManager = new TimeTickManager(100); // 10 ticks per second
-//        timeManager.start();
     }
 
 
@@ -136,6 +102,18 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
     }
 
     public void endRender() {
+
+        shapeRenderer.begin(ShapeRenderer.ShapeType.Filled);
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                AsciiTile tile = buffer[y][x];
+                Color bgColor = getColorFromString(tile.getBackground());
+                shapeRenderer.setColor(bgColor);
+                shapeRenderer.rect(x * tileWidth, (height - y - 1) * tileHeight, tileWidth, tileHeight);
+            }
+        }
+        shapeRenderer.end();
+
         batch.begin();
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -154,7 +132,8 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
         }
         batch.end();
     }
-//    @Override
+
+    //    @Override
     public void render() {
         // Clear the screen
         Gdx.gl.glClearColor(0, 0, 0, 1);
@@ -200,22 +179,18 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
         batch.end();
     }
 
-//    @Override
+    //    @Override
     public void resize(int width, int height) {
         viewport.update(width, height);
         camera.position.set(camera.viewportWidth / 2, camera.viewportHeight / 2, 0);
     }
 
-//    @Override
     public void dispose() {
         batch.dispose();
         shapeRenderer.dispose();
         font.dispose();
 
-        // Shutdown game systems
-//        timeManager.shutdown();
     }
-
 
 
     /**
@@ -254,31 +229,56 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
      */
     private Color getColorFromString(String colorStr) {
         switch (colorStr) {
-            case "BLACK": return Color.BLACK;
-            case "RED": return Color.RED;
-            case "GREEN": return Color.GREEN;
-            case "YELLOW": return Color.YELLOW;
-            case "BLUE": return Color.BLUE;
-            case "PURPLE": return new Color(0.5f, 0, 0.5f, 1);
-            case "CYAN": return Color.CYAN;
-            case "WHITE": return Color.WHITE;
-            case "BRIGHT_BLACK": return Color.DARK_GRAY;
-            case "BRIGHT_RED": return Color.RED.cpy().add(0.3f, 0.3f, 0.3f, 0);
-            case "BRIGHT_GREEN": return Color.GREEN.cpy().add(0.3f, 0.3f, 0.3f, 0);
-            case "BRIGHT_YELLOW": return Color.YELLOW.cpy().add(0.3f, 0.3f, 0.3f, 0);
-            case "BRIGHT_BLUE": return Color.BLUE.cpy().add(0.3f, 0.3f, 0.3f, 0);
-            case "BRIGHT_PURPLE": return new Color(0.8f, 0.3f, 0.8f, 1);
-            case "BRIGHT_CYAN": return Color.CYAN.cpy().add(0.3f, 0.3f, 0.3f, 0);
-            case "BRIGHT_WHITE": return Color.WHITE;
-            case "BG_BLACK": return Color.BLACK;
-            case "BG_RED": return Color.RED.cpy().mul(0.5f);
-            case "BG_GREEN": return Color.GREEN.cpy().mul(0.5f);
-            case "BG_YELLOW": return Color.YELLOW.cpy().mul(0.5f);
-            case "BG_BLUE": return Color.BLUE.cpy().mul(0.5f);
-            case "BG_PURPLE": return new Color(0.25f, 0, 0.25f, 1);
-            case "BG_CYAN": return Color.CYAN.cpy().mul(0.5f);
-            case "BG_WHITE": return Color.LIGHT_GRAY;
-            default: return Color.WHITE;
+            case "BLACK":
+                return Color.BLACK;
+            case "RED":
+                return Color.RED;
+            case "GREEN":
+                return Color.GREEN;
+            case "YELLOW":
+                return Color.YELLOW;
+            case "BLUE":
+                return Color.BLUE;
+            case "PURPLE":
+                return new Color(0.5f, 0, 0.5f, 1);
+            case "CYAN":
+                return Color.CYAN;
+            case "WHITE":
+                return Color.WHITE;
+            case "BRIGHT_BLACK":
+                return Color.DARK_GRAY;
+            case "BRIGHT_RED":
+                return Color.RED.cpy().add(0.3f, 0.3f, 0.3f, 0);
+            case "BRIGHT_GREEN":
+                return Color.GREEN.cpy().add(0.3f, 0.3f, 0.3f, 0);
+            case "BRIGHT_YELLOW":
+                return Color.YELLOW.cpy().add(0.3f, 0.3f, 0.3f, 0);
+            case "BRIGHT_BLUE":
+                return Color.BLUE.cpy().add(0.3f, 0.3f, 0.3f, 0);
+            case "BRIGHT_PURPLE":
+                return new Color(0.8f, 0.3f, 0.8f, 1);
+            case "BRIGHT_CYAN":
+                return Color.CYAN.cpy().add(0.3f, 0.3f, 0.3f, 0);
+            case "BRIGHT_WHITE":
+                return Color.WHITE;
+            case "BG_BLACK":
+                return Color.BLACK;
+            case "BG_RED":
+                return Color.RED.cpy().mul(0.5f);
+            case "BG_GREEN":
+                return Color.GREEN.cpy().mul(0.5f);
+            case "BG_YELLOW":
+                return Color.YELLOW.cpy().mul(0.5f);
+            case "BG_BLUE":
+                return Color.BLUE.cpy().mul(0.5f);
+            case "BG_PURPLE":
+                return new Color(0.25f, 0, 0.25f, 1);
+            case "BG_CYAN":
+                return Color.CYAN.cpy().mul(0.5f);
+            case "BG_WHITE":
+                return Color.LIGHT_GRAY;
+            default:
+                return Color.WHITE;
         }
     }
 

@@ -6,6 +6,7 @@ import entities.EntityManager;
 import game.dwarfs.jobs.JobManager;
 import game.navigation.PathfindingSystem;
 import game.world.WorldManager;
+import game.world.generator.WorldGenerationParameters;
 
 /**
  * Central game engine that coordinates all subsystems
@@ -21,6 +22,9 @@ public class GameEngine {
     // Game state variables
     private boolean isPaused;
     private int gameSpeed; // 1=normal, 2=fast, 3=super fast
+
+
+    private boolean worldGenerated = false;
 
     public void initialize() {
         worldManager = new WorldManager();
@@ -38,6 +42,9 @@ public class GameEngine {
         // Set initial game speed
         gameSpeed = 1;
         isPaused = false;
+
+        // Initialize some world data
+        generateNewWorld();
     }
 
     // Getter methods for all subsystems
@@ -81,6 +88,15 @@ public class GameEngine {
         timeManager.start();
     }
 
+    public void dispose() {
+        timeManager.shutdown();
+    }
+
+    public void update(float deltaTime) {
+        // This method can be used for any updates that need to happen every frame
+        // separate from the time tick system
+    }
+
     public boolean isPaused() {
         return isPaused;
     }
@@ -100,6 +116,20 @@ public class GameEngine {
                 return 25;  // 40 ticks per second
             default:
                 return 100;
+        }
+    }
+
+    public void changeDepth(int delta) {
+        int newZ = worldManager.getWorld().getCurrentZ() + delta;
+        worldManager.getWorld().setCurrentZ(newZ);
+    }
+
+    private void generateNewWorld() {
+        if (!worldGenerated) {
+            // Generate a new game world
+            WorldGenerationParameters params = new WorldGenerationParameters();
+            worldManager.generateNewWorld(params);
+            worldGenerated = true;
         }
     }
 }
