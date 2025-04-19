@@ -1,29 +1,46 @@
 package entities;
 
 
-/**************************************
- * ENTITY SYSTEM
- **************************************/
-
 import core.time.TimeTickListener;
 import entities.impl.Dwarf;
 import entities.impl.Monster;
+import game.world.World;
 
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 /**
  * Manages all entities in the game
  */
 public class EntityManager implements TimeTickListener {
-    private HashMap<UUID, Entity> allEntities = new HashMap<>();
-    private HashMap<EntityType, List<Entity>> entitiesByType = new HashMap<>();
+    final private HashMap<UUID, Entity> allEntities = new HashMap<>();
+    private World world; // Reference to the world
+
+    public EntityManager() {
+        // Initialize entity collections
+    }
+
+    public World getWorld() {
+        return world;
+    }
+
+    public void setWorld(World world) {
+        this.world = world;
+    }
 
     @Override
     public void onTimeTick(long deltaTime) {
         updateEntities(deltaTime);
+    }
+
+    public List<Entity> getVisibleEntities() {
+        // Return entities that should be visible in the current view
+        // This might depend on the player's current position/zoom level
+        List<Entity> visibleEntities = new ArrayList<>();
+
+        // For now, just return all entities
+        visibleEntities.addAll(allEntities.values());
+
+        return visibleEntities;
     }
 
     private void updateEntities(long deltaTime) {

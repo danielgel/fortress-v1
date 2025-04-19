@@ -1,8 +1,6 @@
 package core.engine.display;
 
-import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
-import com.badlogic.gdx.Input;
 import com.badlogic.gdx.graphics.Color;
 import com.badlogic.gdx.graphics.GL20;
 import com.badlogic.gdx.graphics.OrthographicCamera;
@@ -12,10 +10,8 @@ import com.badlogic.gdx.graphics.g2d.SpriteBatch;
 import com.badlogic.gdx.graphics.glutils.ShapeRenderer;
 import com.badlogic.gdx.utils.viewport.FitViewport;
 import com.badlogic.gdx.utils.viewport.Viewport;
-import core.time.TimeTickManager;
 import entities.Entity;
 import entities.EntityType;
-import game.GameEngine;
 import game.navigation.Position;
 import game.world.Tile;
 import game.world.World;
@@ -24,7 +20,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class LibGDXRenderer extends ApplicationAdapter {
+public class LibGDXRenderer {//extends ApplicationAdapter {
     // Screen dimensions (in characters)
     private int width;
     private int height;
@@ -50,33 +46,10 @@ public class LibGDXRenderer extends ApplicationAdapter {
     private int viewportWidth;
     private int viewportHeight;
 
-    // Game world dimensions
-    private int worldWidth;
-    private int worldHeight;
 
     // Symbol mappings
     private Map<EntityType, AsciiSymbol> symbolMap;
 
-    // Game engine reference
-    private GameEngine gameEngine;
-
-    // Time manager
-    private TimeTickManager timeManager;
-
-    // Input handling state
-    private boolean[] keysPressed = new boolean[256];
-
-    public LibGDXRenderer() {
-        // Default dimensions
-        this.width = 80;
-        this.height = 25;
-
-        // Initialize viewport to show the entire screen
-        this.viewportX = 0;
-        this.viewportY = 0;
-        this.viewportWidth = width;
-        this.viewportHeight = height;
-    }
 
     public LibGDXRenderer(int width, int height) {
         this.width = width;
@@ -85,7 +58,6 @@ public class LibGDXRenderer extends ApplicationAdapter {
         this.viewportWidth = width;
         this.viewportHeight = height;
 
-        preRenderInitialization();
     }
 
     private void preRenderInitialization() {
@@ -101,7 +73,32 @@ public class LibGDXRenderer extends ApplicationAdapter {
         }
     }
 
-    @Override
+    private void initializeSample() {
+
+        // Draw a simple dungeon layout
+        for (int y = 0; y < 25; y++) {
+            for (int x = 0; x < 80; x++) {
+                if (x == 0 || y == 0 || x == 79 || y == 24) {
+                    setTile(x, y, EntityType.WALL);
+                } else {
+                    setTile(x, y, EntityType.FLOOR);
+                }
+            }
+        }
+
+        // Add some features
+        setTile(10, 10, EntityType.DWARF);
+        setTile(15, 12, EntityType.MONSTER);
+        setTile(20, 8, EntityType.STAIRS_DOWN);
+        setTile(40, 15, EntityType.WATER);
+
+        // Draw a status box
+        drawBox(2, 2, 20, 5, "Status", TerminalRenderer.WHITE, TerminalRenderer.BG_BLACK);
+        drawString(4, 4, "Health: 100%", TerminalRenderer.GREEN, TerminalRenderer.BG_BLACK);
+
+    }
+
+//    @Override
     public void create() {
         // Initialize LibGDX components
         batch = new SpriteBatch();
@@ -118,26 +115,53 @@ public class LibGDXRenderer extends ApplicationAdapter {
 
         glyphLayout = new GlyphLayout();
 
-
-
+        preRenderInitialization();
+//        initializeSample();
 
 
         // Initialize game engine and time manager
-        gameEngine = new GameEngine();
-        gameEngine.initialize();
+//        gameEngine = new GameEngine();
+//        gameEngine.initialize();
 
-        timeManager = new TimeTickManager(100); // 10 ticks per second
-        timeManager.start();
+//        timeManager = new TimeTickManager(100); // 10 ticks per second
+//        timeManager.start();
     }
 
-    @Override
+
+    public void prepareRender() {
+        camera.update();
+        batch.setProjectionMatrix(camera.combined);
+        shapeRenderer.setProjectionMatrix(camera.combined);
+
+    }
+
+    public void endRender() {
+        batch.begin();
+        for (int y = 0; y < height; y++) {
+            for (int x = 0; x < width; x++) {
+                AsciiTile tile = buffer[y][x];
+                Color fgColor = getColorFromString(tile.getForeground());
+                font.setColor(fgColor);
+
+                // Center the character within its tile
+                String character = String.valueOf(tile.getSymbol());
+                glyphLayout.setText(font, character);
+                float xPos = x * tileWidth + (tileWidth - glyphLayout.width) / 2;
+                float yPos = (height - y) * tileHeight - (tileHeight - glyphLayout.height) / 2;
+
+                font.draw(batch, character, xPos, yPos);
+            }
+        }
+        batch.end();
+    }
+//    @Override
     public void render() {
         // Clear the screen
         Gdx.gl.glClearColor(0, 0, 0, 1);
         Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
 
         // Handle input
-        handleInput();
+//        handleInput();
 
         // Update camera
         camera.update();
@@ -176,60 +200,23 @@ public class LibGDXRenderer extends ApplicationAdapter {
         batch.end();
     }
 
-    @Override
+//    @Override
     public void resize(int width, int height) {
         viewport.update(width, height);
         camera.position.set(camera.viewportWidth / 2, camera.viewportHeight / 2, 0);
     }
 
-    @Override
+//    @Override
     public void dispose() {
         batch.dispose();
         shapeRenderer.dispose();
         font.dispose();
 
         // Shutdown game systems
-        timeManager.shutdown();
+//        timeManager.shutdown();
     }
 
-    private void handleInput() {
-        // Check for game control keys
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            Gdx.app.exit();
-        }
 
-        // Arrow key movement (for camera or player)
-        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
-            // Handle up movement
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
-            // Handle down movement
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            // Handle left movement
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            // Handle right movement
-        }
-
-        // Game speed controls
-        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
-            gameEngine.setGameSpeed(1); // Normal speed
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
-            gameEngine.setGameSpeed(2); // Fast
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) {
-            gameEngine.setGameSpeed(3); // Super fast
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
-            if (gameEngine.isPaused()) {
-                gameEngine.resume();
-            } else {
-                gameEngine.pause();
-            }
-        }
-    }
 
     /**
      * Initialize symbol mappings for entities
@@ -299,11 +286,13 @@ public class LibGDXRenderer extends ApplicationAdapter {
      * Clear the screen buffer
      */
     public void clear() {
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                buffer[y][x] = new AsciiTile(' ', "WHITE", "BG_BLACK");
-            }
-        }
+        Gdx.gl.glClearColor(0, 0, 0, 1);
+        Gdx.gl.glClear(GL20.GL_COLOR_BUFFER_BIT);
+//        for (int y = 0; y < height; y++) {
+//            for (int x = 0; x < width; x++) {
+//                buffer[y][x] = new AsciiTile(' ', "WHITE", "BG_BLACK");
+//            }
+//        }
     }
 
     /**
@@ -401,15 +390,15 @@ public class LibGDXRenderer extends ApplicationAdapter {
     /**
      * Center the viewport on specific world coordinates
      */
-    public void centerViewportOn(int worldX, int worldY) {
+    public void centerViewportOn(int worldX, int worldY, World world) {
         viewportX = worldX - viewportWidth / 2;
         viewportY = worldY - viewportHeight / 2;
 
         // Ensure viewport stays within world bounds
         if (viewportX < 0) viewportX = 0;
         if (viewportY < 0) viewportY = 0;
-        if (viewportX + viewportWidth > worldWidth) viewportX = worldWidth - viewportWidth;
-        if (viewportY + viewportHeight > worldHeight) viewportY = worldHeight - viewportHeight;
+        if (viewportX + viewportWidth > world.getWidth()) viewportX = world.getWidth() - viewportWidth;
+        if (viewportY + viewportHeight > world.getHeight()) viewportY = world.getHeight() - viewportHeight;
     }
 
     /**
@@ -436,12 +425,13 @@ public class LibGDXRenderer extends ApplicationAdapter {
      * Render world terrain within the current viewport
      */
     public void renderWorld(World world) {
+
         for (int y = 0; y < viewportHeight; y++) {
             for (int x = 0; x < viewportWidth; x++) {
                 int worldX = x + viewportX;
                 int worldY = y + viewportY;
 
-                if (worldX >= 0 && worldX < worldWidth && worldY >= 0 && worldY < worldHeight) {
+                if (worldX >= 0 && worldX < world.getWidth() && worldY >= 0 && worldY < world.getHeight()) {
                     // Get the tile at this world position
                     Tile worldTile = world.getTileAt(worldX, worldY, world.getCurrentZ());
                     EntityType tileType = mapTileToEntityType(worldTile);
