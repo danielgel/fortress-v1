@@ -14,6 +14,7 @@ public enum EntityType {
     TREE, MINERAL, GEM,
 
     // Buildings
-    WORKSHOP, FORGE
-    // Add more as needed
+    WORKSHOP, FORGE,
+    CURSOR
+
 }

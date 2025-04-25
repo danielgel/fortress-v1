@@ -222,6 +222,8 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
         // Workshop symbols
         symbolMap.put(EntityType.WORKSHOP, new AsciiSymbol('&', "YELLOW", "BG_BLACK"));
         symbolMap.put(EntityType.FORGE, new AsciiSymbol('Ω', "RED", "BG_BLACK"));
+
+        symbolMap.put(EntityType.CURSOR, new AsciiSymbol('©', "WHITE", "BG_BLACK"));
     }
 
     /**
@@ -385,6 +387,52 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
         this.viewportY = y;
         this.viewportWidth = width;
         this.viewportHeight = height;
+    }
+
+    public boolean moveViewportHorizontally(int deltaX, World world) {
+        int oldValue = viewportX;
+        viewportX = Math.clamp(viewportX + deltaX, 0, world.getWidth() - viewportWidth);
+        return !(oldValue == viewportX);
+    }
+
+    public boolean moveViewportVertically(int deltaY, World world) {
+        int oldValue = viewportY;
+        this.viewportY = Math.clamp(this.viewportY + deltaY, 0, world.getHeight() - viewportHeight);
+        return !(oldValue == viewportY);
+    }
+
+    public void moveViewportAccordingToNewCursorPosition(Position cursorPosition, World world) {
+        int hDeltaForMovement = 10;
+        int vDeltaForMovement = 3;
+
+        int[] screenCursorPosition = worldToScreen((int) cursorPosition.getX(), (int) cursorPosition.getY());
+        int screenXPosition = screenCursorPosition[0];
+        int screenYPosition = screenCursorPosition[1];
+        if (screenXPosition > viewportWidth - hDeltaForMovement) {
+            // TODO: move viewport to the right
+            moveViewportHorizontally(1, world);
+        }
+
+        if (screenXPosition < hDeltaForMovement) {
+            // TODO: move viewport to the left
+            moveViewportHorizontally(-1, world);
+        }
+
+        if (screenYPosition > viewportHeight - vDeltaForMovement) {
+            // TODO: move viewport down
+            moveViewportVertically(1, world);
+        }
+
+        if (screenYPosition < vDeltaForMovement) {
+            // TODO: move viewport up
+            moveViewportVertically(-1, world);
+        }
+    }
+
+
+    public void drawCursor(int x, int y) {
+        int[] screenPositions = worldToScreen(x, y);
+        this.setTile(screenPositions[0], screenPositions[1], EntityType.CURSOR);
     }
 
     /**

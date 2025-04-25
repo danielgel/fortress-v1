@@ -4,6 +4,7 @@ import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import core.engine.display.LibGDXRenderer;
+import game.navigation.Position;
 import game.world.World;
 
 public class GameController extends ApplicationAdapter {
@@ -14,12 +15,16 @@ public class GameController extends ApplicationAdapter {
     private LibGDXRenderer renderer;
 
     // Game state
-    private boolean worldGenerated = false;
     private boolean gameInitialized = false;
 
     // Time tracking for updates
     private float accumulatedTime = 0;
     private final float UPDATE_STEP = 1 / 60f; // 60 updates per second
+
+    private int cursorLocationX;
+    private int cursorLocationY;
+
+    private ControllStates controlMode = ControllStates.CAMERA;
 
     @Override
     public void create() {
@@ -34,6 +39,7 @@ public class GameController extends ApplicationAdapter {
         // Start the game
         gameEngine.start();
         gameInitialized = true;
+
     }
 
     @Override
@@ -90,16 +96,55 @@ public class GameController extends ApplicationAdapter {
 
         // Arrow key movement (for camera or player)
         if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
-            gameEngine.changeDepth(1);
+            if (controlMode == ControllStates.CAMERA) {
+                boolean viewPortMoved = renderer.moveViewportVertically(-1, gameEngine.getWorldManager().getWorld());
+                if (viewPortMoved) gameEngine.moveCursorVertical(-1);
+            } else {
+                gameEngine.moveCursorVertical(-1);
+                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
+            }
+
         }
         if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
-            gameEngine.changeDepth(-1);
+            if (controlMode == ControllStates.CAMERA) {
+                boolean viewPortMoved = renderer.moveViewportVertically(1, gameEngine.getWorldManager().getWorld());
+                if (viewPortMoved) gameEngine.moveCursorVertical(1);
+            } else {
+                gameEngine.moveCursorVertical(1);
+                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
+            }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            // Handle left movement
+            if (controlMode == ControllStates.CAMERA) {
+                boolean viewPortMoved = renderer.moveViewportHorizontally(-1, gameEngine.getWorldManager().getWorld());
+                if (viewPortMoved) gameEngine.moveCursorHorizontal(-1);
+            } else {
+                gameEngine.moveCursorHorizontal(-1);
+                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
+            }
         }
         if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            // Handle right movement
+            if (controlMode == ControllStates.CAMERA) {
+                boolean viewPortMoved =  renderer.moveViewportHorizontally(1, gameEngine.getWorldManager().getWorld());
+                if (viewPortMoved) gameEngine.moveCursorHorizontal(1);
+            } else {
+                gameEngine.moveCursorHorizontal(1);
+                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
+            }
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.PAGE_DOWN)) {
+            gameEngine.changeDepth(1);
+            gameEngine.moveCursorDepth(1);
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.PAGE_UP)) {
+            gameEngine.changeDepth(-1);
+            gameEngine.moveCursorDepth(-1);
+        }
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.Q)) {
+            controlMode = controlMode == ControllStates.CAMERA ? ControllStates.CURSOR : ControllStates.CAMERA;
         }
 
         // Game speed controls
@@ -143,7 +188,7 @@ public class GameController extends ApplicationAdapter {
 
     private void renderUI() {
         // Render game UI elements
-        renderer.drawBox(2, 2, 20, 5, "Game Info", "WHITE", "BG_BLACK");
+        renderer.drawBox(2, 2, 20, 7, "Game Info", "WHITE", "BG_BLACK");
 
         // Display game speed
         String speedText = "Speed: " + gameEngine.getGameSpeed();
@@ -152,6 +197,11 @@ public class GameController extends ApplicationAdapter {
         // Display pause status
         String statusText = gameEngine.isPaused() ? "PAUSED" : "RUNNING";
         renderer.drawString(4, 5, statusText, gameEngine.isPaused() ? "RED" : "GREEN", "BG_BLACK");
-        renderer.drawString(4,6,"CURRENT HEIGHT: "+ gameEngine.getWorldManager().getWorld().getCurrentZ(), "GREEN", "BG_BLACK");
+        renderer.drawString(4, 6, "CURRENT DEPTH: " + gameEngine.getWorldManager().getWorld().getCurrentZ(), "GREEN", "BG_BLACK");
+        renderer.drawString(4, 7, "Control Mode: " + controlMode.name(), "GREEN", "BG_BLACK");
+
+        Position cursorPosition = gameEngine.getCursorPosition();
+        renderer.drawCursor((int) cursorPosition.getX(), (int) cursorPosition.getY());
     }
+
 }

@@ -5,6 +5,7 @@ import core.time.TimeTickManager;
 import entities.EntityManager;
 import game.dwarfs.jobs.JobManager;
 import game.navigation.PathfindingSystem;
+import game.navigation.Position;
 import game.world.WorldManager;
 import game.world.generator.WorldGenerationParameters;
 
@@ -23,6 +24,7 @@ public class GameEngine {
     private boolean isPaused;
     private int gameSpeed; // 1=normal, 2=fast, 3=super fast
 
+    final private Position cursorLocation = new Position();
 
     private boolean worldGenerated = false;
 
@@ -45,6 +47,7 @@ public class GameEngine {
 
         // Initialize some world data
         generateNewWorld();
+
     }
 
     // Getter methods for all subsystems
@@ -119,9 +122,27 @@ public class GameEngine {
         }
     }
 
+    public void moveCursorHorizontal(int deltaX) {
+        cursorLocation.setX(Math.clamp(cursorLocation.getX() + deltaX, 0, worldManager.getWorld().getWidth()));
+    }
+
+    public void moveCursorVertical(int deltaY) {
+        cursorLocation.setY(Math.clamp(cursorLocation.getY() + deltaY, 0, worldManager.getWorld().getHeight()));
+    }
+
+    public void moveCursorDepth(int deltaZ) {
+        cursorLocation.setZ(Math.clamp(cursorLocation.getZ() + deltaZ, 0, worldManager.getWorld().getDepth()));
+    }
+
+    public Position getCursorPosition() {
+        return cursorLocation;
+    }
+
+
     public void changeDepth(int delta) {
         int newZ = worldManager.getWorld().getCurrentZ() + delta;
         worldManager.getWorld().setCurrentZ(newZ);
+
     }
 
     private void generateNewWorld() {
