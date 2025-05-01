@@ -1,20 +1,20 @@
 package org.example;
 
 import core.engine.display.TerminalRenderer;
-import core.system.InputManager;
+import core.system.InputManagerExampleClass;
 
 import java.io.IOException;
 
 class InputManagerExample {
     private boolean running = true;
     private final TerminalRenderer renderer;
-    private final InputManager inputManager;
+    private final InputManagerExampleClass inputManager;
     private int playerX = 10;
     private int playerY = 10;
 
     public InputManagerExample() throws IOException {
         renderer = new TerminalRenderer(80, 25);
-        inputManager = new InputManager();
+        inputManager = new InputManagerExampleClass();
 
         // Set up handlers for specific keys
         setupInputHandlers();
@@ -22,24 +22,24 @@ class InputManagerExample {
 
     private void setupInputHandlers() {
         // Exit the game when ESC is pressed
-        inputManager.registerKeyHandler(InputManager.Keys.ESC, event -> {
+        inputManager.registerKeyHandler(InputManagerExampleClass.Keys.ESC, event -> {
             running = false;
         });
 
         // Move player with arrow keys
-        inputManager.registerKeyHandler(InputManager.Keys.UP, event -> {
+        inputManager.registerKeyHandler(InputManagerExampleClass.Keys.UP, event -> {
             if (playerY > 1) playerY--;
         });
 
-        inputManager.registerKeyHandler(InputManager.Keys.DOWN, event -> {
+        inputManager.registerKeyHandler(InputManagerExampleClass.Keys.DOWN, event -> {
             if (playerY < 23) playerY++;
         });
 
-        inputManager.registerKeyHandler(InputManager.Keys.LEFT, event -> {
+        inputManager.registerKeyHandler(InputManagerExampleClass.Keys.LEFT, event -> {
             if (playerX > 1) playerX--;
         });
 
-        inputManager.registerKeyHandler(InputManager.Keys.RIGHT, event -> {
+        inputManager.registerKeyHandler(InputManagerExampleClass.Keys.RIGHT, event -> {
             if (playerX < 78) playerX++;
         });
     }
@@ -55,7 +55,7 @@ class InputManagerExample {
             while (running) {
                 // Process input
                 while (inputManager.hasEvents()) {
-                    InputManager.InputEvent event = inputManager.pollEvent();
+                    InputManagerExampleClass.InputEvent event = inputManager.pollEvent();
                     // Additional input processing if needed
                 }
 

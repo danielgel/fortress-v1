@@ -2,10 +2,15 @@ package game;
 
 import core.events.EventManager;
 import core.time.TimeTickManager;
+import entities.Entity;
 import entities.EntityManager;
+import entities.EntityType;
+import game.dwarfs.jobs.Job;
 import game.dwarfs.jobs.JobManager;
+import game.dwarfs.jobs.JobType;
 import game.navigation.PathfindingSystem;
 import game.navigation.Position;
+import game.world.Tile;
 import game.world.WorldManager;
 import game.world.generator.WorldGenerationParameters;
 
@@ -34,7 +39,8 @@ public class GameEngine {
         eventManager = new EventManager();
         timeManager = new TimeTickManager(100); // Default to 10 ticks/second
         pathfindingSystem = new PathfindingSystem();
-        jobManager = new JobManager();
+        createDemoEntities();
+        jobManager = new JobManager(entityManager);
 
         // Register time tick listeners
         timeManager.registerListener(worldManager);
@@ -48,6 +54,11 @@ public class GameEngine {
         // Initialize some world data
         generateNewWorld();
 
+    }
+
+    private void createDemoEntities() {
+        Entity newDwarf = entityManager.createEntity(EntityType.DWARF);
+        newDwarf.setPosition(new Position(10,10));
     }
 
     // Getter methods for all subsystems
@@ -153,5 +164,10 @@ public class GameEngine {
             worldGenerated = true;
         }
     }
+
+    public void createTaskAtCursor(JobType jobType) {
+        jobManager.createJob(jobType, cursorLocation, 1);
+    }
+
 }
 

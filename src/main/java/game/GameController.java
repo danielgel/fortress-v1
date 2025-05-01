@@ -4,12 +4,20 @@ import com.badlogic.gdx.ApplicationAdapter;
 import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import core.engine.display.LibGDXRenderer;
+import core.system.InputManager;
+import game.dwarfs.jobs.JobType;
 import game.navigation.Position;
+import game.ui.UiBuffer;
 import game.world.World;
+
+import java.util.List;
+import java.util.UUID;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class GameController extends ApplicationAdapter {
     // Core game systems
     private GameEngine gameEngine;
+    private InputManager inputManager;
 
     // Rendering
     private LibGDXRenderer renderer;
@@ -21,10 +29,11 @@ public class GameController extends ApplicationAdapter {
     private float accumulatedTime = 0;
     private final float UPDATE_STEP = 1 / 60f; // 60 updates per second
 
-    private int cursorLocationX;
-    private int cursorLocationY;
-
     private ControllStates controlMode = ControllStates.CAMERA;
+
+    private UiBuffer uiBuffer;
+
+    private List<UUID> tempUiElements;
 
     @Override
     public void create() {
@@ -34,6 +43,13 @@ public class GameController extends ApplicationAdapter {
         // Create the renderer
         renderer = new LibGDXRenderer(80, 24);
         renderer.initializeRenderingComponents(); // Initialize LibGDX rendering components
+        uiBuffer = new UiBuffer();
+
+
+        uiBuffer.addToBuffer(() -> "Speed: " + gameEngine.getGameSpeed(), () -> "GREEN", () -> "BG_BLACK");
+        uiBuffer.addToBuffer(() -> gameEngine.isPaused() ? "PAUSED" : "RUNNING", () -> gameEngine.isPaused() ? "RED" : "GREEN", () -> "BG_BLACK");
+        uiBuffer.addToBuffer(() -> "CURRENT DEPTH: " + gameEngine.getWorldManager().getWorld().getCurrentZ(), () -> "GREEN", () -> "BG_BLACK");
+        uiBuffer.addToBuffer(() -> "Control Mode: " + controlMode.name(), () -> "GREEN", () -> "BG_BLACK");
 
 
         // Start the game
@@ -70,6 +86,7 @@ public class GameController extends ApplicationAdapter {
     private void initializeGameSystems() {
         // Create all core systems
         gameEngine = new GameEngine();
+        inputManager = new InputManager(gameEngine);
         gameEngine.initialize();
 
     }
@@ -89,13 +106,16 @@ public class GameController extends ApplicationAdapter {
     }
 
     private void handleInput() {
+        // TODO: Placeholder for the InputManager to take over.
+        inputManager.handleInput();
+
         // Check for game control keys
         if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
             Gdx.app.exit();
         }
 
         // Arrow key movement (for camera or player)
-        if (Gdx.input.isKeyJustPressed(Input.Keys.UP)) {
+        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
             if (controlMode == ControllStates.CAMERA) {
                 boolean viewPortMoved = renderer.moveViewportVertically(-1, gameEngine.getWorldManager().getWorld());
                 if (viewPortMoved) gameEngine.moveCursorVertical(-1);
@@ -105,7 +125,7 @@ public class GameController extends ApplicationAdapter {
             }
 
         }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.DOWN)) {
+        if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
             if (controlMode == ControllStates.CAMERA) {
                 boolean viewPortMoved = renderer.moveViewportVertically(1, gameEngine.getWorldManager().getWorld());
                 if (viewPortMoved) gameEngine.moveCursorVertical(1);
@@ -125,12 +145,17 @@ public class GameController extends ApplicationAdapter {
         }
         if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
             if (controlMode == ControllStates.CAMERA) {
-                boolean viewPortMoved =  renderer.moveViewportHorizontally(1, gameEngine.getWorldManager().getWorld());
+                boolean viewPortMoved = renderer.moveViewportHorizontally(1, gameEngine.getWorldManager().getWorld());
                 if (viewPortMoved) gameEngine.moveCursorHorizontal(1);
             } else {
                 gameEngine.moveCursorHorizontal(1);
                 renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
             }
+        }
+
+
+        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
+            gameEngine.createTaskAtCursor(JobType.TELEPORT);
         }
 
         if (Gdx.input.isKeyJustPressed(Input.Keys.PAGE_DOWN)) {
@@ -187,18 +212,18 @@ public class GameController extends ApplicationAdapter {
     }
 
     private void renderUI() {
+
+
+        int numberOfItems = uiBuffer.getBuffer().size();
+        int x = 4;
+        AtomicInteger y = new AtomicInteger(4);
+
         // Render game UI elements
-        renderer.drawBox(2, 2, 20, 7, "Game Info", "WHITE", "BG_BLACK");
+        renderer.drawBox(2, 2, 20, 4 + numberOfItems, "Game Info", "WHITE", "BG_BLACK");
 
-        // Display game speed
-        String speedText = "Speed: " + gameEngine.getGameSpeed();
-        renderer.drawString(4, 4, speedText, "GREEN", "BG_BLACK");
-
-        // Display pause status
-        String statusText = gameEngine.isPaused() ? "PAUSED" : "RUNNING";
-        renderer.drawString(4, 5, statusText, gameEngine.isPaused() ? "RED" : "GREEN", "BG_BLACK");
-        renderer.drawString(4, 6, "CURRENT DEPTH: " + gameEngine.getWorldManager().getWorld().getCurrentZ(), "GREEN", "BG_BLACK");
-        renderer.drawString(4, 7, "Control Mode: " + controlMode.name(), "GREEN", "BG_BLACK");
+        uiBuffer.getBuffer().forEach(uiSupplier -> {
+            renderer.drawString(x, y.getAndIncrement(), uiSupplier.getText().get(), uiSupplier.getForeground().get(), uiSupplier.getBackground().get());
+        });
 
         Position cursorPosition = gameEngine.getCursorPosition();
         renderer.drawCursor((int) cursorPosition.getX(), (int) cursorPosition.getY());

@@ -1,5 +1,6 @@
 package game.world;
 
+import game.navigation.Position;
 import game.world.calendar.WorldCalendar;
 
 /**
@@ -23,6 +24,17 @@ public class World {
         // Initialize other systems
         history = new WorldHistory();
         calendar = new WorldCalendar();
+    }
+
+    public Tile getTileAt(Position position) {
+        int x = (int) position.getX();
+        int y = (int) position.getY();
+        int z = (int) position.getZ();
+
+        if (isValidCoordinate(x, y, z)) {
+            return tiles[z][y][x];
+        }
+        return null;
     }
 
     public Tile getTileAt(int x, int y, int z) {

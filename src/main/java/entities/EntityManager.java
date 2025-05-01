@@ -12,7 +12,8 @@ import java.util.*;
  * Manages all entities in the game
  */
 public class EntityManager implements TimeTickListener {
-    final private HashMap<UUID, Entity> allEntities = new HashMap<>();
+    final private Map<UUID, Entity> allEntities = new HashMap<>();
+    final private Map<EntityType, List<AbstractMap.SimpleEntry<UUID, Entity>>> entityTypeListMap = new HashMap<>();
     private World world; // Reference to the world
 
     public EntityManager() {
@@ -30,6 +31,10 @@ public class EntityManager implements TimeTickListener {
     @Override
     public void onTimeTick(long deltaTime) {
         updateEntities(deltaTime);
+    }
+
+    public List<AbstractMap.SimpleEntry<UUID, Entity>> getEntitiesByType(EntityType type) {
+        return entityTypeListMap.get(type);
     }
 
     public List<Entity> getVisibleEntities() {
@@ -70,7 +75,8 @@ public class EntityManager implements TimeTickListener {
     public Entity createEntity(EntityType type) {
         Entity newEntity = getEntityByType(type);
         allEntities.put(newEntity.getId(), newEntity);
-//        entitiesByType.get(type).add(newEntity);
+        entityTypeListMap.computeIfAbsent(type, k -> new ArrayList<>());
+        entityTypeListMap.get(type).add(new AbstractMap.SimpleEntry<>(newEntity.getId(), newEntity));
         return newEntity;
     }
 
