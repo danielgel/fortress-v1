@@ -58,7 +58,7 @@ public class GameEngine {
 
     private void createDemoEntities() {
         Entity newDwarf = entityManager.createEntity(EntityType.DWARF);
-        newDwarf.setPosition(new Position(10,10));
+        newDwarf.setPosition(new Position(15,15));
     }
 
     // Getter methods for all subsystems

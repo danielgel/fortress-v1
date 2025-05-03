@@ -5,6 +5,15 @@ public class Position {
     private double y = 0;
     private double z = 0;
 
+
+    public static Position from(Position pos) {
+        return new Position(pos.getX(), pos.getY(), pos.getZ());
+    }
+
+    public String toString() {
+        return "Position (x:" + x + " y:" + y + " z:" + z + ")";
+    }
+
     public Position() {
     }
 

@@ -33,17 +33,21 @@ public class Job {
         status = JobStatus.IN_PROGRESS;
     }
 
+    public boolean isStarted() {
+        return status != JobStatus.NOT_STARTED;
+    }
+
     public void update(long deltaTime) {
-        if (isComplete()) {
+        if (isComplete() || !isStarted()) {
             return;
         }
 
         // Update current job step progress
-        JobStep currentStep = steps.get(currentStepIndex);
+        JobStep currentStep = steps.get(currentStepIndex++);
         JobStatus stepStatus = currentStep.update(deltaTime, this);
 
         // Step Completed, check if job is also completed...
-        if (stepStatus == JobStatus.COMPLETED && ++currentStepIndex < steps.size()) {
+        if (stepStatus == JobStatus.COMPLETED && currentStepIndex <= steps.size()) {
             status = JobStatus.COMPLETED;
         }
     }

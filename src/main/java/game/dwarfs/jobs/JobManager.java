@@ -65,6 +65,7 @@ public class JobManager implements TimeTickListener {
                 Entity performer = entity.get().getValue();
                 job.setAssignerPerformer(performer);
                 assignedJobs.put(performer.getId(), job);
+                job.start();
             });
         }
 

@@ -58,7 +58,7 @@ public abstract class Entity implements TimeTickListener {
     }
 
     public Entity setPosition(Position position) {
-        this.position = position;
+        this.position = Position.from(position);
         return this;
     }
 }

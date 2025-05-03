@@ -54,7 +54,7 @@ public class TimeTickManager {
             lastTickTime = currentTime;
 
             // Notify all registered entities
-            for (TimeTickListener listener : new ArrayList<>(listeners)) {
+            for (TimeTickListener listener : listeners) {
                 listener.onTimeTick(deltaTime);
             }
         }, 0, tickIntervalMs, TimeUnit.MILLISECONDS);

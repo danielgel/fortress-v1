@@ -50,6 +50,7 @@ public class GameController extends ApplicationAdapter {
         uiBuffer.addToBuffer(() -> gameEngine.isPaused() ? "PAUSED" : "RUNNING", () -> gameEngine.isPaused() ? "RED" : "GREEN", () -> "BG_BLACK");
         uiBuffer.addToBuffer(() -> "CURRENT DEPTH: " + gameEngine.getWorldManager().getWorld().getCurrentZ(), () -> "GREEN", () -> "BG_BLACK");
         uiBuffer.addToBuffer(() -> "Control Mode: " + controlMode.name(), () -> "GREEN", () -> "BG_BLACK");
+        uiBuffer.addToBuffer(() -> "Cursor " + gameEngine.getCursorPosition(), () -> "WHITE", () -> "BG_BLACK");
 
 
         // Start the game
