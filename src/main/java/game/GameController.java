@@ -5,6 +5,7 @@ import com.badlogic.gdx.Gdx;
 import com.badlogic.gdx.Input;
 import core.engine.display.LibGDXRenderer;
 import core.system.InputManager;
+import core.system.InputOptions;
 import game.dwarfs.jobs.JobType;
 import game.navigation.Position;
 import game.ui.UiBuffer;
@@ -87,9 +88,83 @@ public class GameController extends ApplicationAdapter {
     private void initializeGameSystems() {
         // Create all core systems
         gameEngine = new GameEngine();
-        inputManager = new InputManager(gameEngine);
+        inputManager = new InputManager();
         gameEngine.initialize();
+        setLevelInputs();
+    }
 
+    private void setLevelInputs() {
+        inputManager.registerEvent(Input.Keys.ESCAPE, (new InputOptions()).setSingleShot(true), _ -> Gdx.app.exit());
+        inputManager.registerEvent(Input.Keys.UP, _ -> {
+            if (controlMode == ControllStates.CAMERA) {
+                boolean viewPortMoved = renderer.moveViewportVertically(-1, gameEngine.getWorldManager().getWorld());
+                if (viewPortMoved) gameEngine.moveCursorVertical(-1);
+            } else {
+                gameEngine.moveCursorVertical(-1);
+                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
+            }
+        });
+
+        inputManager.registerEvent(Input.Keys.DOWN, _ -> {
+            if (controlMode == ControllStates.CAMERA) {
+                boolean viewPortMoved = renderer.moveViewportVertically(1, gameEngine.getWorldManager().getWorld());
+                if (viewPortMoved) gameEngine.moveCursorVertical(1);
+            } else {
+                gameEngine.moveCursorVertical(1);
+                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
+            }
+        });
+
+        inputManager.registerEvent(Input.Keys.LEFT, _ -> {
+            if (controlMode == ControllStates.CAMERA) {
+                boolean viewPortMoved = renderer.moveViewportHorizontally(-1, gameEngine.getWorldManager().getWorld());
+                if (viewPortMoved) gameEngine.moveCursorHorizontal(-1);
+            } else {
+                gameEngine.moveCursorHorizontal(-1);
+                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
+            }
+        });
+        inputManager.registerEvent(Input.Keys.RIGHT, inputEvent -> {
+            if (controlMode == ControllStates.CAMERA) {
+                boolean viewPortMoved = renderer.moveViewportHorizontally(1, gameEngine.getWorldManager().getWorld());
+                if (viewPortMoved) gameEngine.moveCursorHorizontal(1);
+            } else {
+                gameEngine.moveCursorHorizontal(1);
+                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
+            }
+        });
+
+        inputManager.registerEvent(Input.Keys.ENTER, new InputOptions(true), _ -> {
+            gameEngine.createTaskAtCursor(JobType.TELEPORT);
+        });
+
+        inputManager.registerEvent(Input.Keys.PAGE_DOWN, new InputOptions(true), _ -> {
+            gameEngine.changeDepth(1);
+            gameEngine.moveCursorDepth(1);
+        });
+        inputManager.registerEvent(Input.Keys.PAGE_UP, new InputOptions(true), _ -> {
+            gameEngine.changeDepth(-1);
+            gameEngine.moveCursorDepth(-1);
+        });
+        inputManager.registerEvent(Input.Keys.Q, new InputOptions(true), _ -> {
+            controlMode = controlMode == ControllStates.CAMERA ? ControllStates.CURSOR : ControllStates.CAMERA;
+        });
+        inputManager.registerEvent(Input.Keys.NUM_1, new InputOptions(true), _ -> {
+            gameEngine.setGameSpeed(1); // Normal speed
+        });
+        inputManager.registerEvent(Input.Keys.NUM_2, new InputOptions(true), _ -> {
+            gameEngine.setGameSpeed(2); // Fast
+        });
+        inputManager.registerEvent(Input.Keys.NUM_3, new InputOptions(true), _ -> {
+            gameEngine.setGameSpeed(3); // Super fast
+        });
+        inputManager.registerEvent(Input.Keys.SPACE, new InputOptions(true), _ -> {
+            if (gameEngine.isPaused()) {
+                gameEngine.resume();
+            } else {
+                gameEngine.pause();
+            }
+        });
     }
 
     private void update(float deltaTime) {
@@ -107,89 +182,8 @@ public class GameController extends ApplicationAdapter {
     }
 
     private void handleInput() {
-        // TODO: Placeholder for the InputManager to take over.
         inputManager.handleInput();
 
-        // Check for game control keys
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ESCAPE)) {
-            Gdx.app.exit();
-        }
-
-        // Arrow key movement (for camera or player)
-        if (Gdx.input.isKeyPressed(Input.Keys.UP)) {
-            if (controlMode == ControllStates.CAMERA) {
-                boolean viewPortMoved = renderer.moveViewportVertically(-1, gameEngine.getWorldManager().getWorld());
-                if (viewPortMoved) gameEngine.moveCursorVertical(-1);
-            } else {
-                gameEngine.moveCursorVertical(-1);
-                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
-            }
-
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.DOWN)) {
-            if (controlMode == ControllStates.CAMERA) {
-                boolean viewPortMoved = renderer.moveViewportVertically(1, gameEngine.getWorldManager().getWorld());
-                if (viewPortMoved) gameEngine.moveCursorVertical(1);
-            } else {
-                gameEngine.moveCursorVertical(1);
-                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
-            }
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.LEFT)) {
-            if (controlMode == ControllStates.CAMERA) {
-                boolean viewPortMoved = renderer.moveViewportHorizontally(-1, gameEngine.getWorldManager().getWorld());
-                if (viewPortMoved) gameEngine.moveCursorHorizontal(-1);
-            } else {
-                gameEngine.moveCursorHorizontal(-1);
-                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
-            }
-        }
-        if (Gdx.input.isKeyPressed(Input.Keys.RIGHT)) {
-            if (controlMode == ControllStates.CAMERA) {
-                boolean viewPortMoved = renderer.moveViewportHorizontally(1, gameEngine.getWorldManager().getWorld());
-                if (viewPortMoved) gameEngine.moveCursorHorizontal(1);
-            } else {
-                gameEngine.moveCursorHorizontal(1);
-                renderer.moveViewportAccordingToNewCursorPosition(gameEngine.getCursorPosition(), gameEngine.getWorldManager().getWorld());
-            }
-        }
-
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.ENTER)) {
-            gameEngine.createTaskAtCursor(JobType.TELEPORT);
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.PAGE_DOWN)) {
-            gameEngine.changeDepth(1);
-            gameEngine.moveCursorDepth(1);
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.PAGE_UP)) {
-            gameEngine.changeDepth(-1);
-            gameEngine.moveCursorDepth(-1);
-        }
-
-        if (Gdx.input.isKeyJustPressed(Input.Keys.Q)) {
-            controlMode = controlMode == ControllStates.CAMERA ? ControllStates.CURSOR : ControllStates.CAMERA;
-        }
-
-        // Game speed controls
-        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_1)) {
-            gameEngine.setGameSpeed(1); // Normal speed
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_2)) {
-            gameEngine.setGameSpeed(2); // Fast
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.NUM_3)) {
-            gameEngine.setGameSpeed(3); // Super fast
-        }
-        if (Gdx.input.isKeyJustPressed(Input.Keys.SPACE)) {
-            if (gameEngine.isPaused()) {
-                gameEngine.resume();
-            } else {
-                gameEngine.pause();
-            }
-        }
     }
 
     private void renderGameState() {
