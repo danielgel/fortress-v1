@@ -43,7 +43,7 @@ public class AStar {
      *
      * @param start Starting position
      * @param target Target position
-     * @param pathfindingConstraints Additional constraints on movement
+     * @param constraints Additional constraints on movement
      * @return A path if one is found, null otherwise
      */
     public Path findPath(Position start, Position target, PathfindingConstraints constraints) {
