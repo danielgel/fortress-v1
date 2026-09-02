@@ -1,4 +1,4 @@
-https://claude.ai/chat/0f6ba812-5d5f-4d3c-b8d4-881449f1a6cb
+
 
 This architecture provides a solid foundation for your Dwarf Fortress-like game. Let me walk you through the key components:
 Core Systems
