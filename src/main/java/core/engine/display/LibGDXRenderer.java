@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Map;
 
 public class LibGDXRenderer {//extends ApplicationAdapter {
+    // Background colour used to highlight the cell the cursor is on
+    private static final String CURSOR_BACKGROUND = "BG_CYAN";
+
     // Screen dimensions (in characters)
     private int width;
     private int height;
@@ -432,7 +435,18 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
 
     public void drawCursor(int x, int y) {
         int[] screenPositions = worldToScreen(x, y);
-        this.setTile(screenPositions[0], screenPositions[1], EntityType.CURSOR);
+        int screenX = screenPositions[0];
+        int screenY = screenPositions[1];
+
+        if (!isInBounds(screenX, screenY)) {
+            return;
+        }
+
+        // Highlight the cell rather than replacing its glyph. The cursor used to be
+        // drawn as its own symbol, which hid whatever shared the cell - most visibly
+        // a dwarf that had just been sent to the cursor position by a job.
+        AsciiTile current = buffer[screenY][screenX];
+        buffer[screenY][screenX] = new AsciiTile(current.getSymbol(), current.getForeground(), CURSOR_BACKGROUND);
     }
 
     /**

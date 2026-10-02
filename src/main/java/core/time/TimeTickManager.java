@@ -1,16 +1,24 @@
 package core.time;
 
-import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 public class TimeTickManager {
-    private final List<TimeTickListener> listeners = new ArrayList<>();
-    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-    private final long tickIntervalMs;
-    private boolean isRunning = false;
+    private final List<TimeTickListener> listeners = new CopyOnWriteArrayList<>();
+    private final ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor(runnable -> {
+        Thread thread = new Thread(runnable, "game-tick");
+        // Daemon so a missed shutdown() cannot keep the JVM alive after the window closes.
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    private long tickIntervalMs;
+    private ScheduledFuture<?> tickTask;
+    private boolean isShutDown = false;
     private long lastTickTime;
 
     /**
@@ -38,62 +46,69 @@ public class TimeTickManager {
     }
 
     /**
-     * Starts the time tick mechanism.
+     * Starts the time tick mechanism. Does nothing if already running or shut down.
      */
-    public void start() {
-        if (isRunning) return;
+    public synchronized void start() {
+        if (isShutDown || isRunning()) return;
 
-        isRunning = true;
         lastTickTime = System.currentTimeMillis();
 
-        scheduler.scheduleAtFixedRate(() -> {
-            if (!isRunning) return;
-
+        tickTask = scheduler.scheduleAtFixedRate(() -> {
             long currentTime = System.currentTimeMillis();
             long deltaTime = currentTime - lastTickTime;
             lastTickTime = currentTime;
 
-            // Notify all registered entities
+            // Notify all registered entities. A listener that throws would otherwise
+            // cancel the repeating task silently and stop the clock for good.
             for (TimeTickListener listener : listeners) {
-                listener.onTimeTick(deltaTime);
+                try {
+                    listener.onTimeTick(deltaTime);
+                } catch (RuntimeException e) {
+                    System.err.println("Tick listener " + listener.getClass().getName() + " failed:");
+                    e.printStackTrace();
+                }
             }
         }, 0, tickIntervalMs, TimeUnit.MILLISECONDS);
     }
 
     /**
-     * Stops the time tick mechanism.
+     * Stops the time tick mechanism. The manager can be started again afterwards.
      */
-    public void stop() {
-        isRunning = false;
+    public synchronized void stop() {
+        if (tickTask != null) {
+            tickTask.cancel(false);
+            tickTask = null;
+        }
     }
 
     /**
      * Shuts down the time tick mechanism and cleans up resources.
+     * The manager cannot be restarted afterwards.
      */
-    public void shutdown() {
+    public synchronized void shutdown() {
         stop();
+        isShutDown = true;
         scheduler.shutdown();
         listeners.clear();
     }
 
     /**
-     * Changes the tick interval. This requires restarting the manager.
+     * @return true if ticks are currently being delivered.
+     */
+    public synchronized boolean isRunning() {
+        return tickTask != null && !tickTask.isCancelled();
+    }
+
+    /**
+     * Changes the tick interval, restarting the ticker if it was already running.
      * @param newTickIntervalMs The new interval between ticks in milliseconds.
      */
-    public void setTickInterval(long newTickIntervalMs) {
-        boolean wasRunning = isRunning;
-        if (wasRunning) {
-            stop();
-        }
+    public synchronized void setTickInterval(long newTickIntervalMs) {
+        if (newTickIntervalMs == tickIntervalMs) return;
 
-        scheduler.shutdown();
-        try {
-            scheduler.awaitTermination(1, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-
-        // Create a new manager with the updated interval
+        boolean wasRunning = isRunning();
+        stop();
+        tickIntervalMs = newTickIntervalMs;
         if (wasRunning) {
             start();
         }
@@ -102,7 +117,7 @@ public class TimeTickManager {
     /**
      * @return The current tick interval in milliseconds.
      */
-    public long getTickIntervalMs() {
+    public synchronized long getTickIntervalMs() {
         return tickIntervalMs;
     }
 }

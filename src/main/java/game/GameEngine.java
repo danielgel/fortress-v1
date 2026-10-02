@@ -38,7 +38,11 @@ public class GameEngine {
         entityManager = new EntityManager();
         eventManager = new EventManager();
         timeManager = new TimeTickManager(100); // Default to 10 ticks/second
-        pathfindingSystem = new PathfindingSystem();
+
+        // The world has to exist before the pathfinder, which navigates it.
+        generateNewWorld();
+        pathfindingSystem = new PathfindingSystem(worldManager.getWorld());
+
         createDemoEntities();
         jobManager = new JobManager(entityManager);
 
@@ -50,10 +54,6 @@ public class GameEngine {
         // Set initial game speed
         gameSpeed = 1;
         isPaused = false;
-
-        // Initialize some world data
-        generateNewWorld();
-
     }
 
     private void createDemoEntities() {
@@ -166,7 +166,9 @@ public class GameEngine {
     }
 
     public void createTaskAtCursor(JobType jobType) {
-        jobManager.createJob(jobType, cursorLocation, 1);
+        // Snapshot the cursor: passing the live instance made the job's target follow
+        // the cursor around after the job had already been created.
+        jobManager.createJob(jobType, Position.from(cursorLocation), 1);
     }
 
 }

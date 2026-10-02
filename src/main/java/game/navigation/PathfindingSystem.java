@@ -4,6 +4,7 @@ package game.navigation;
  * PATHFINDING SYSTEM
  **************************************/
 
+import game.world.Tile;
 import game.world.World;
 
 import java.util.HashMap;
@@ -209,19 +210,5 @@ public class PathfindingSystem {
     public void setAllowDiagonal(boolean allowDiagonal) {
         // We would need to update the AStar instance or create a new one
         // This would require modifying the AStar class to allow changing this setting
-    }
-
-    /**
-     * Import a Tile class for local use
-     * This is just a placeholder for compilation
-     */
-    private static class Tile {
-        public boolean isWalkable() {
-            return true;
-        }
-
-        public Object getMaterial() {
-            return null;
-        }
     }
 }
