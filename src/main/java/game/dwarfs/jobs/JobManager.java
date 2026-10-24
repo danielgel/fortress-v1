@@ -16,67 +16,81 @@ import java.util.*;
  * Manages job assignments for dwarves
  */
 public class JobManager implements TimeTickListener {
-    //    private PriorityQueue<Job> availableJobs;
-    private Map<UUID, Job> assignedJobs;
-    private List<Job> jobsQueue;
-    private EntityManager entityManager;
-//    private List<WorkshopJob> workshopJobs;
+    private static final Map<JobType, List<EntityType>> PERFORMERS_BY_JOB_TYPE = new EnumMap<>(JobType.class);
+
+    static {
+        for (JobType jobType : JobType.values()) {
+            PERFORMERS_BY_JOB_TYPE.put(jobType, List.of(EntityType.DWARF));
+        }
+    }
+
+    // performer id -> the job they are currently working on
+    private final Map<UUID, Job> assignedJobs = new HashMap<>();
+    private final List<Job> jobsQueue = new ArrayList<>();
+    private final EntityManager entityManager;
 
     public JobManager(EntityManager entityManager) {
-        assignedJobs = new HashMap<>();
-        jobsQueue = new ArrayList<>();
         this.entityManager = entityManager;
     }
 
+    // Jobs are created from the render thread while ticks run on the scheduler thread, hence the synchronization.
     @Override
-    public void onTimeTick(long deltaTime) {
+    public synchronized void onTimeTick(long deltaTime) {
+        releaseFinishedJobs();
         assignAvailableJobs();
         updateOngoingJobs(deltaTime);
     }
 
-    public void createJob(JobType type, Position position, int priority) {
-        Job job = new Job(type, position, priority);
-        jobsQueue.add(job);
+    public synchronized void createJob(JobType type, Position position, int priority) {
+        jobsQueue.add(new Job(type, position, priority));
+    }
+
+    public synchronized int getQueuedJobCount() {
+        return jobsQueue.size();
+    }
+
+    public synchronized Optional<Job> getAssignedJob(UUID performerId) {
+        return Optional.ofNullable(assignedJobs.get(performerId));
+    }
+
+    private void releaseFinishedJobs() {
+        assignedJobs.values().removeIf(Job::isFinished);
     }
 
     private void updateOngoingJobs(long deltaTime) {
-        assignedJobs.values().forEach((job -> {
-            job.update(deltaTime);
-        }));
+        assignedJobs.values().forEach(job -> job.update(deltaTime));
     }
 
+    /**
+     * Assigns queued jobs to idle performers, highest priority first (first come first served among equals).
+     * A job stays queued while no suitable idle performer exists, without blocking other jobs.
+     */
     private void assignAvailableJobs() {
-        // Find idle dwarves and assign them appropriate jobs
-        if (!jobsQueue.isEmpty()) {
-            Job job = jobsQueue.removeFirst();
-            // FIXME: This is not the correct way of doing job assignment. This needs to be fixed for the following use cases:
-            //  - Different types of performers can collide in logic.
-            //  - There may not be enough performers of specific type for a job
-            //  - The assignment mechanism is not so good. Must be refactored.
-            List<EntityType> performers = getPerformersByJobType(job.getType());
-            Optional<EntityType> performerType = performers.stream().filter((entityType -> {
-                List<AbstractMap.SimpleEntry<UUID, Entity>> entities = entityManager.getEntitiesByType(entityType);
-                return !entities.isEmpty();
-            })).findFirst();
+        jobsQueue.sort(Comparator.comparingInt(Job::getPriority).reversed());
 
-            performerType.ifPresent((type) -> {
-                List<AbstractMap.SimpleEntry<UUID, Entity>> entities = entityManager.getEntitiesByType(type);
-                Optional<AbstractMap.SimpleEntry<UUID, Entity>> entity = entities.stream().findFirst();
-                Entity performer = entity.get().getValue();
-                job.setAssignerPerformer(performer);
-                assignedJobs.put(performer.getId(), job);
-                job.start();
-            });
+        Iterator<Job> queued = jobsQueue.iterator();
+        while (queued.hasNext()) {
+            Job job = queued.next();
+            Optional<Entity> performer = findIdlePerformer(job.getType());
+            if (performer.isEmpty()) {
+                continue;
+            }
+
+            job.setAssignerPerformer(performer.get());
+            assignedJobs.put(performer.get().getId(), job);
+            job.start();
+            queued.remove();
         }
-
     }
 
-    private List<EntityType> getPerformersByJobType(JobType jobType) {
-        switch (jobType) {
-            case TELEPORT, WORK_ON, DIG, BUILD, GOTO -> {
-                return List.of(EntityType.DWARF);
+    private Optional<Entity> findIdlePerformer(JobType jobType) {
+        for (EntityType performerType : PERFORMERS_BY_JOB_TYPE.getOrDefault(jobType, List.of())) {
+            for (AbstractMap.SimpleEntry<UUID, Entity> candidate : entityManager.getEntitiesByType(performerType)) {
+                if (!assignedJobs.containsKey(candidate.getKey())) {
+                    return Optional.of(candidate.getValue());
+                }
             }
         }
-        return null;
+        return Optional.empty();
     }
 }

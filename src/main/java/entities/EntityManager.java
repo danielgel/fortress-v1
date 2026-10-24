@@ -34,7 +34,7 @@ public class EntityManager implements TimeTickListener {
     }
 
     public List<AbstractMap.SimpleEntry<UUID, Entity>> getEntitiesByType(EntityType type) {
-        return entityTypeListMap.get(type);
+        return entityTypeListMap.getOrDefault(type, List.of());
     }
 
     public List<Entity> getVisibleEntities() {

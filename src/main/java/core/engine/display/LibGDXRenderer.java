@@ -409,22 +409,18 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
         int screenXPosition = screenCursorPosition[0];
         int screenYPosition = screenCursorPosition[1];
         if (screenXPosition > viewportWidth - hDeltaForMovement) {
-            // TODO: move viewport to the right
             moveViewportHorizontally(1, world);
         }
 
         if (screenXPosition < hDeltaForMovement) {
-            // TODO: move viewport to the left
             moveViewportHorizontally(-1, world);
         }
 
         if (screenYPosition > viewportHeight - vDeltaForMovement) {
-            // TODO: move viewport down
             moveViewportVertically(1, world);
         }
 
         if (screenYPosition < vDeltaForMovement) {
-            // TODO: move viewport up
             moveViewportVertically(-1, world);
         }
     }
@@ -432,7 +428,19 @@ public class LibGDXRenderer {//extends ApplicationAdapter {
 
     public void drawCursor(int x, int y) {
         int[] screenPositions = worldToScreen(x, y);
-        this.setTile(screenPositions[0], screenPositions[1], EntityType.CURSOR);
+        int screenX = screenPositions[0];
+        int screenY = screenPositions[1];
+        if (!isInBounds(screenX, screenY)) {
+            return;
+        }
+
+        // Highlight the cell instead of replacing its glyph, otherwise e.g. a teleported dwarf is hidden under the cursor
+        AsciiTile underCursor = buffer[screenY][screenX];
+        if (underCursor.getSymbol() == ' ') {
+            this.setTile(screenX, screenY, EntityType.CURSOR);
+        } else {
+            this.setTile(screenX, screenY, underCursor.getSymbol(), "BLACK", "BG_WHITE");
+        }
     }
 
     /**

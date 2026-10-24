@@ -38,7 +38,9 @@ public class GameEngine {
         entityManager = new EntityManager();
         eventManager = new EventManager();
         timeManager = new TimeTickManager(100); // Default to 10 ticks/second
-        pathfindingSystem = new PathfindingSystem();
+        // The world must exist before the pathfinding system can be built
+        generateNewWorld();
+        pathfindingSystem = new PathfindingSystem(worldManager.getWorld());
         createDemoEntities();
         jobManager = new JobManager(entityManager);
 
@@ -50,10 +52,6 @@ public class GameEngine {
         // Set initial game speed
         gameSpeed = 1;
         isPaused = false;
-
-        // Initialize some world data
-        generateNewWorld();
-
     }
 
     private void createDemoEntities() {
@@ -134,15 +132,15 @@ public class GameEngine {
     }
 
     public void moveCursorHorizontal(int deltaX) {
-        cursorLocation.setX(Math.clamp(cursorLocation.getX() + deltaX, 0, worldManager.getWorld().getWidth()));
+        cursorLocation.setX(Math.clamp(cursorLocation.getX() + deltaX, 0, worldManager.getWorld().getWidth() - 1));
     }
 
     public void moveCursorVertical(int deltaY) {
-        cursorLocation.setY(Math.clamp(cursorLocation.getY() + deltaY, 0, worldManager.getWorld().getHeight()));
+        cursorLocation.setY(Math.clamp(cursorLocation.getY() + deltaY, 0, worldManager.getWorld().getHeight() - 1));
     }
 
     public void moveCursorDepth(int deltaZ) {
-        cursorLocation.setZ(Math.clamp(cursorLocation.getZ() + deltaZ, 0, worldManager.getWorld().getDepth()));
+        cursorLocation.setZ(Math.clamp(cursorLocation.getZ() + deltaZ, 0, worldManager.getWorld().getDepth() - 1));
     }
 
     public Position getCursorPosition() {

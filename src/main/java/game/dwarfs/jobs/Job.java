@@ -29,6 +29,13 @@ public class Job {
         return status == JobStatus.COMPLETED;
     }
 
+    /**
+     * @return true once the job reached a terminal state (completed or failed) and its performer is free again
+     */
+    public boolean isFinished() {
+        return status == JobStatus.COMPLETED || status == JobStatus.FAILED;
+    }
+
     public void start() {
         status = JobStatus.IN_PROGRESS;
     }
@@ -38,17 +45,24 @@ public class Job {
     }
 
     public void update(long deltaTime) {
-        if (isComplete() || !isStarted()) {
+        if (!isStarted() || isFinished()) {
             return;
         }
 
-        // Update current job step progress
-        JobStep currentStep = steps.get(currentStepIndex++);
-        JobStatus stepStatus = currentStep.update(deltaTime, this);
+        // A job type without any implemented steps can never make progress
+        if (steps == null || steps.isEmpty()) {
+            status = JobStatus.FAILED;
+            return;
+        }
 
-        // Step Completed, check if job is also completed...
-        if (stepStatus == JobStatus.COMPLETED && currentStepIndex <= steps.size()) {
-            status = JobStatus.COMPLETED;
+        JobStatus stepStatus = steps.get(currentStepIndex).update(deltaTime, this);
+        if (stepStatus == JobStatus.COMPLETED) {
+            currentStepIndex++;
+            if (currentStepIndex >= steps.size()) {
+                status = JobStatus.COMPLETED;
+            }
+        } else if (stepStatus == JobStatus.FAILED) {
+            status = JobStatus.FAILED;
         }
     }
 
@@ -111,7 +125,7 @@ public class Job {
 
     public Job(JobType type, Position position, int priority) {
         this.priority = priority;
-        this.position = position;
+        this.position = Position.from(position); // copy, the caller's position may be mutable (e.g. the cursor)
         this.type = type;
         setJobStepsByType();
     }
@@ -122,6 +136,8 @@ public class Job {
                 steps = List.of(new TeleportStep());
             }
             case GOTO, DIG, WORK_ON, BUILD -> {
+                // Not implemented yet: no steps, so the job fails as soon as it is started
+                steps = List.of();
             }
             default -> throw new IllegalStateException("Unexpected value: " + type);
         }

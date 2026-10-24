@@ -54,8 +54,13 @@ public class TimeTickManager {
             lastTickTime = currentTime;
 
             // Notify all registered entities
+            // An uncaught exception would silently cancel all future ticks of the scheduler
             for (TimeTickListener listener : listeners) {
-                listener.onTimeTick(deltaTime);
+                try {
+                    listener.onTimeTick(deltaTime);
+                } catch (RuntimeException e) {
+                    e.printStackTrace();
+                }
             }
         }, 0, tickIntervalMs, TimeUnit.MILLISECONDS);
     }
