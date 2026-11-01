@@ -55,7 +55,7 @@ src/
   ui/        canvas renderer, input controller, DOM HUD
 tests/       headless simulation tests
 ```
-
+  
 The simulation has no DOM dependency and is driven by `GameEngine.update()`; the browser loop only decides how many ticks to run per frame (`core/clock.ts`).
 
 ## Notes on the port from Java/LibGDX
