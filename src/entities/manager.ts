@@ -1,5 +1,5 @@
 import type { Pos } from '../world/types';
-import { Entity, EntityType, dwarfName } from './entity';
+import { Entity, EntityType, animalName, dwarfName } from './entity';
 import type { Rng } from '../core/rng';
 
 export class EntityManager {
@@ -11,7 +11,7 @@ export class EntityManager {
     let e: Entity;
     if (type === EntityType.DWARF) e = Entity.dwarf(id, dwarfName(rng), pos, rng);
     else if (type === EntityType.MONSTER) e = Entity.monster(id, pos);
-    else e = Entity.animal(id, pos);
+    else e = Entity.animal(id, pos, animalName(rng));
     this.all.set(id, e);
     return e;
   }

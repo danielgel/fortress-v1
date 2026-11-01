@@ -67,6 +67,8 @@ function generateUnderground(world: World, seed: number, rng: Rng): void {
             if (cave > 0.76) world.magma[i] = MAX_FLUID;
           } else if (cave > 0.77) {
             world.water[i] = MAX_FLUID; // flooded cavern pocket
+          } else if (rng.chance(0.08)) {
+            world.feature[i] = Feature.MUSHROOM;
           }
           continue;
         }

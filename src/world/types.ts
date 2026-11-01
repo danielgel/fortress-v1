@@ -29,6 +29,7 @@ export enum Feature {
   SHRUB,
   ORE,
   GEM,
+  MUSHROOM,
 }
 
 export const MAX_FLUID = 7;

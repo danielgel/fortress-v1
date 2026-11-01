@@ -4,9 +4,11 @@ import { type World } from '../world/world';
 export interface PathfindingConstraints {
   canSwim: boolean;
   canUseStairs: boolean;
+  canOpenDoors: boolean;
 }
 
-export const DEFAULT_CONSTRAINTS: PathfindingConstraints = { canSwim: false, canUseStairs: true };
+export const DEFAULT_CONSTRAINTS: PathfindingConstraints = { canSwim: false, canUseStairs: true, canOpenDoors: true };
+export const NO_DOORS: PathfindingConstraints = { ...DEFAULT_CONSTRAINTS, canOpenDoors: false };
 
 export interface PathOptions {
   /** Cap on expanded nodes so unreachable targets fail fast. */
@@ -87,6 +89,7 @@ export function findPath(
   const c = opts.constraints ?? DEFAULT_CONSTRAINTS;
   const passable = (x: number, y: number, z: number): boolean => {
     if (!world.inBounds(x, y, z)) return false;
+    if (!c.canOpenDoors && world.flags[world.idx(x, y, z)] & Flag.DOOR) return false;
     if (world.walkable(x, y, z)) return true;
     // swimmers can cross deeper water
     if (c.canSwim) {

@@ -6,6 +6,9 @@ import { JobType } from '../src/jobs/job';
 import { findPathTo } from '../src/nav/astar';
 import { EntityType } from '../src/entities/entity';
 import { Feature, Flag } from '../src/world/types';
+import { Building, WALL } from '../src/game/content';
+import { addOrder } from '../src/game/production';
+import { NO_DOORS } from '../src/nav/astar';
 
 const small = { width: 60, height: 60, depth: 8, seed: 12345 };
 
@@ -80,8 +83,9 @@ describe('jobs', () => {
     e.jobs.designate(e, JobType.CHOP, { x: x + 2, y, z: 0 });
     e.jobs.designate(e, JobType.GATHER, { x, y: y + 2, z: 0 });
     const food = e.stock.food;
+    const wood = e.stock.wood;
     run(e, 400);
-    expect(e.stock.wood).toBe(3);
+    expect(e.stock.wood).toBe(wood + 3);
     expect(e.stock.food).toBeGreaterThanOrEqual(food + 3 - 7);
     expect(w.feature[w.idx(x + 2, y, 0)]).toBe(Feature.NONE);
   });
@@ -109,6 +113,7 @@ describe('needs', () => {
     const food = e.stock.food;
     run(e, 1500);
     expect(e.stock.food).toBeLessThan(food);
+    expect(e.stock.booze).toBeLessThan(10);
     for (const d of e.entities.dwarves) expect(d.needs!.hunger).toBeLessThan(70);
   });
 });
@@ -187,5 +192,198 @@ describe('save/load', () => {
     expect(copy.jobs.jobs.size).toBe(e.jobs.jobs.size);
     run(copy, 800);
     expect(copy.world.has(e.embark.x, e.embark.y, 0, Flag.STAIRS_DOWN)).toBe(true);
+  });
+});
+
+/** Flat, open test site: clear everything in a square around the embark. */
+function clearing(e: GameEngine, r = 6) {
+  const w = e.world;
+  for (let dy = -r; dy <= r; dy++)
+    for (let dx = -r; dx <= r; dx++) {
+      const i = w.idx(e.embark.x + dx, e.embark.y + dy, 0);
+      w.feature[i] = Feature.NONE;
+      w.water[i] = 0;
+      w.flags[i] &= ~Flag.SOURCE;
+    }
+}
+
+describe('tools', () => {
+  it('nobody can mine without a pick', () => {
+    const e = GameEngine.create(small);
+    e.stock.pick = 0;
+    const { x, y } = e.embark;
+    e.jobs.designate(e, JobType.STAIRS, { x, y, z: 0 });
+    run(e, 600);
+    expect(e.world.has(x, y, 0, Flag.STAIRS_DOWN)).toBe(false);
+    e.stock.pick = 1;
+    run(e, 600);
+    expect(e.world.has(x, y, 0, Flag.STAIRS_DOWN)).toBe(true);
+    expect(e.entities.dwarves.filter((d) => d.tools.includes('pick'))).toHaveLength(1);
+    expect(e.stock.pick).toBe(0);
+  });
+
+  it('a dead dwarf returns their tools to the stockpile', () => {
+    const e = GameEngine.create(small);
+    const d = e.entities.dwarves[0];
+    d.tools.push('axe');
+    const axes = e.stock.axe;
+    e.kill(d);
+    expect(e.stock.axe).toBe(axes + 1);
+  });
+});
+
+describe('buildings and production', () => {
+  it('builds a workshop, fills an order, places the furniture', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    const { x, y } = e.embark;
+    e.stock.wood = 10;
+    expect(typeof e.jobs.designate(e, JobType.BUILD, { x: x + 3, y, z: 0 }, 1, Building.CARPENTER)).not.toBe('string');
+    run(e, 400);
+    expect(e.world.buildingAt(x + 3, y, 0)).toBe(Building.CARPENTER);
+    expect(e.stock.wood).toBe(7);
+
+    addOrder(e, 'wood-bed', 2);
+    run(e, 800);
+    expect(e.stock.bed).toBe(2);
+    expect(e.stock.wood).toBe(3);
+    expect(e.orders['wood-bed']).toBeUndefined();
+
+    e.jobs.designate(e, JobType.BUILD, { x: x - 3, y, z: 0 }, 1, Building.BED);
+    run(e, 300);
+    expect(e.world.buildingAt(x - 3, y, 0)).toBe(Building.BED);
+    expect(e.stock.bed).toBe(1);
+  });
+
+  it('dwarves sleep in beds and enjoy it', () => {
+    const e = GameEngine.create(small, 1);
+    clearing(e);
+    const { x, y } = e.embark;
+    e.world.setBuilding(x + 2, y + 2, 0, Building.BED);
+    const d = e.entities.dwarves[0];
+    d.needs!.fatigue = 90;
+    d.needs!.hunger = d.needs!.thirst = 0;
+    run(e, 200);
+    expect(d.mental!.thought).toBe('slept in a comfortable bed');
+  });
+
+  it('does not let workshops exceed the materials on hand', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    const { x, y } = e.embark;
+    e.world.setBuilding(x + 2, y, 0, Building.KITCHEN);
+    e.world.setBuilding(x - 2, y, 0, Building.KITCHEN);
+    e.stock.food = 3;
+    e.stock.meals = 0;
+    addOrder(e, 'meal', 5);
+    run(e, 20);
+    expect(e.jobs.ofType(JobType.CRAFT)).toHaveLength(1);
+  });
+
+  it('removing furniture refunds it', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    const { x, y } = e.embark;
+    e.world.setBuilding(x + 2, y, 0, Building.TABLE);
+    const tables = e.stock.table;
+    e.jobs.designate(e, JobType.REMOVE, { x: x + 2, y, z: 0 });
+    run(e, 200);
+    expect(e.world.buildingAt(x + 2, y, 0)).toBe(Building.NONE);
+    expect(e.stock.table).toBe(tables + 1);
+  });
+
+  it('walls go through the build menu too', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    e.stock.stone = 1;
+    e.jobs.designate(e, JobType.BUILD, { x: e.embark.x + 3, y: e.embark.y, z: 0 }, 1, WALL);
+    run(e, 300);
+    expect(e.world.isOpen(e.embark.x + 3, e.embark.y, 0)).toBe(false);
+  });
+
+  it('doors keep goblins out but let dwarves through', () => {
+    const e = GameEngine.create(small);
+    const w = e.world;
+    // a 1-wide corridor at depth 1 with a door in the middle
+    for (let x = 5; x <= 9; x++) w.flags[w.idx(x, 5, 1)] |= Flag.OPEN;
+    w.setBuilding(7, 5, 1, Building.DOOR);
+    expect(findPathTo(w, { x: 5, y: 5, z: 1 }, { x: 9, y: 5, z: 1 })).not.toBeNull();
+    expect(findPathTo(w, { x: 5, y: 5, z: 1 }, { x: 9, y: 5, z: 1 }, { constraints: NO_DOORS })).toBeNull();
+  });
+});
+
+describe('gathering', () => {
+  it('fishing spots keep yielding food until cancelled', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    const w = e.world;
+    const { x, y } = e.embark;
+    const i = w.idx(x + 3, y, 0);
+    w.water[i] = 7;
+    w.flags[i] |= Flag.SOURCE;
+    e.fluids.rebuild();
+    const job = e.jobs.designate(e, JobType.FISH, { x: x + 3, y, z: 0 });
+    expect(typeof job).not.toBe('string');
+    for (const d of e.entities.dwarves) d.needs!.hunger = 0;
+    const food = e.stock.food;
+    run(e, 1500);
+    expect(e.stock.food).toBeGreaterThan(food - 4);
+    expect(e.entities.dwarves.some((d) => d.skills!.xp.fishing >= 10)).toBe(true);
+    expect(e.jobs.ofType(JobType.FISH)).toHaveLength(1);
+  });
+
+  it('hunters chase down an animal', () => {
+    const e = GameEngine.create(small);
+    clearing(e, 8);
+    const prey = e.entities.ofType(EntityType.ANIMAL)[0];
+    prey.pos = { x: e.embark.x + 6, y: e.embark.y + 6, z: 0 };
+    const food = e.stock.food;
+    expect(typeof e.jobs.designate(e, JobType.HUNT, prey.pos)).not.toBe('string');
+    run(e, 800);
+    expect(prey.alive).toBe(false);
+    expect(e.stock.food).toBeGreaterThanOrEqual(food + 5 - 7);
+  });
+
+  it('gathers mushrooms underground', () => {
+    const e = GameEngine.create(small);
+    const w = e.world;
+    const { x, y } = e.embark;
+    w.setStairsDown(x, y, 0);
+    w.flags[w.idx(x + 1, y, 1)] |= Flag.OPEN;
+    w.flags[w.idx(x + 2, y, 1)] |= Flag.OPEN;
+    w.feature[w.idx(x + 2, y, 1)] = Feature.MUSHROOM;
+    const plants = e.stock.plants;
+    e.jobs.designate(e, JobType.GATHER, { x: x + 2, y, z: 1 });
+    run(e, 500);
+    expect(e.stock.plants).toBe(plants + 2);
+  });
+});
+
+describe('save compatibility', () => {
+  it('round-trips buildings, tools and orders', () => {
+    const e = GameEngine.create(small);
+    e.world.setBuilding(e.embark.x + 2, e.embark.y, 0, Building.MASON);
+    e.entities.dwarves[0].tools.push('pick');
+    addOrder(e, 'statue', 3);
+    const copy = deserialize(serialize(e));
+    expect(copy.world.buildingAt(e.embark.x + 2, e.embark.y, 0)).toBe(Building.MASON);
+    expect(copy.world.buildingTiles.size).toBe(1);
+    expect(copy.entities.all.get(e.entities.dwarves[0].id)!.tools).toEqual(['pick']);
+    expect(copy.orders.statue.queued).toBe(3);
+  });
+
+  it('loads a version 2 save', () => {
+    const e = GameEngine.create(small);
+    const d = JSON.parse(serialize(e));
+    d.version = 2;
+    delete d.arrays.building;
+    delete d.orders;
+    d.stock = { stone: 4, ore: 1, gems: 0, wood: 2, food: 9 };
+    for (const ent of d.entities) delete ent.tools;
+    const copy = deserialize(JSON.stringify(d));
+    expect(copy.stock.stone).toBe(4);
+    expect(copy.stock.pick).toBeGreaterThan(0);
+    expect(copy.stock.meals).toBe(0);
+    run(copy, 100);
   });
 });

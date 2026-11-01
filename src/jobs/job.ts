@@ -1,4 +1,5 @@
 import type { Entity } from '../entities/entity';
+import type { ToolKind } from '../game/content';
 import type { GameEngine } from '../game/engine';
 import type { Pos } from '../world/types';
 import { buildSteps } from './recipes';
@@ -15,6 +16,10 @@ export enum JobType {
   EAT,
   SLEEP,
   WANDER,
+  FISH,
+  HUNT,
+  CRAFT,
+  REMOVE,
 }
 
 export const JOB_LABELS: Record<JobType, string> = {
@@ -24,11 +29,24 @@ export const JOB_LABELS: Record<JobType, string> = {
   [JobType.STAIRS]: 'dig stairs',
   [JobType.CHOP]: 'chop tree',
   [JobType.GATHER]: 'gather',
-  [JobType.BUILD]: 'build wall',
+  [JobType.BUILD]: 'build',
   [JobType.DRINK]: 'drink',
   [JobType.EAT]: 'eat',
   [JobType.SLEEP]: 'sleep',
   [JobType.WANDER]: 'wander',
+  [JobType.FISH]: 'fish',
+  [JobType.HUNT]: 'hunt',
+  [JobType.CRAFT]: 'craft',
+  [JobType.REMOVE]: 'remove building',
+};
+
+/** The tool a dwarf must carry to do this kind of work. */
+export const JOB_TOOL: Partial<Record<JobType, ToolKind>> = {
+  [JobType.DIG]: 'pick',
+  [JobType.STAIRS]: 'pick',
+  [JobType.CHOP]: 'axe',
+  [JobType.FISH]: 'rod',
+  [JobType.HUNT]: 'spear',
 };
 
 export enum JobStatus {
@@ -58,6 +76,8 @@ export class Job {
     public priority = 1,
     /** Personal jobs (eating, sleeping...) never enter the shared queue. */
     readonly personal = false,
+    /** Job-specific detail: building to place, recipe index, hunted entity id, booze... */
+    readonly arg = 0,
   ) {
     this.reset();
   }

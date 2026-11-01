@@ -1,4 +1,6 @@
+import { ANIMAL_SPECIES, type ToolKind } from '../game/content';
 import type { GameEngine } from '../game/engine';
+import { NO_DOORS } from '../nav/astar';
 import type { Job } from '../jobs/job';
 import type { Pos } from '../world/types';
 import {
@@ -22,6 +24,8 @@ export class Entity {
   job: Job | null = null;
   /** Ticks until the next idle wander / attack. */
   timer = 0;
+  /** Tools this dwarf carries around. */
+  tools: ToolKind[] = [];
   physical: PhysicalComponent | null = null;
   mental: MentalComponent | null = null;
   skills: SkillComponent | null = null;
@@ -54,8 +58,8 @@ export class Entity {
     return e;
   }
 
-  static animal(id: number, pos: Pos): Entity {
-    const e = new Entity(id, EntityType.ANIMAL, 'animal', pos);
+  static animal(id: number, pos: Pos, name = 'animal'): Entity {
+    const e = new Entity(id, EntityType.ANIMAL, name, pos);
     e.physical = new PhysicalComponent(3, 12, 6, 20);
     e.movement = new MovementComponent(7);
     return e;
@@ -65,12 +69,17 @@ export class Entity {
     const e = new Entity(id, EntityType.MONSTER, 'goblin', pos);
     e.physical = new PhysicalComponent(11, 9, 12, 45);
     e.movement = new MovementComponent(5);
+    e.movement.constraints = NO_DOORS;
     return e;
   }
 }
 
 const SYLLABLES = ['Ur', 'Dor', 'Bar', 'Thor', 'Gim', 'Bal', 'Dwa', 'Nor', 'Ber', 'Kil', 'Fun', 'Mor', 'Oin', 'Zul', 'Dur', 'Tha'];
 const ENDINGS = ['in', 'ak', 'ur', 'li', 'grim', 'din', 'bek', 'rik', 'dak', 'mund'];
+
+export function animalName(rng: { int(n: number): number }): string {
+  return ANIMAL_SPECIES[rng.int(ANIMAL_SPECIES.length)];
+}
 
 export function dwarfName(rng: { int(n: number): number }): string {
   return SYLLABLES[rng.int(SYLLABLES.length)] + ENDINGS[rng.int(ENDINGS.length)];
