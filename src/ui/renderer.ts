@@ -4,6 +4,7 @@ import type { GameEngine } from '../game/engine';
 import { JobType } from '../jobs/job';
 import { Feature, Flag, Material, type Pos } from '../world/types';
 import { WeatherType } from '../world/weather';
+import { BUILDINGS, Building } from '../game/content';
 
 export interface ViewState {
   z: number;
@@ -26,8 +27,9 @@ const JOB_GLYPH: Partial<Record<JobType, string>> = {
   [JobType.STAIRS]: '>',
   [JobType.CHOP]: 't',
   [JobType.GATHER]: 'g',
-  [JobType.BUILD]: 'b',
   [JobType.TELEPORT]: '*',
+  [JobType.FISH]: 'f',
+  [JobType.REMOVE]: 'r',
 };
 
 const ENTITY_VIEW: Record<EntityType, Cell> = {
@@ -131,7 +133,11 @@ export class Renderer {
     if (f & Flag.STAIRS_DOWN && f & Flag.STAIRS_UP) return { ch: 'X', fg: '#ffd070', bg: '#222228' };
     if (f & Flag.STAIRS_DOWN) return { ch: '>', fg: '#ffd070', bg: z === 0 ? '#2a3a26' : '#222228' };
     if (f & Flag.STAIRS_UP) return { ch: '<', fg: '#ffd070', bg: '#222228' };
-    if (f & Flag.DOOR) return { ch: '+', fg: '#e0b050', bg: '#222228' };
+    const b = w.building[i] as Building;
+    if (b) {
+      const info = BUILDINGS[b];
+      return { ch: info.glyph, fg: info.fg, bg: info.bg ?? (z === 0 ? '#2e2a22' : '#24242a') };
+    }
 
     let bg: string;
     let fg: string;
@@ -146,6 +152,7 @@ export class Renderer {
     }
     if (feat === Feature.TREE) return { ch: '♣', fg: engine.climate.isFreezing ? '#9fc2a8' : '#37b04a', bg };
     if (feat === Feature.SHRUB) return { ch: '"', fg: '#e0587a', bg };
+    if (feat === Feature.MUSHROOM) return { ch: '♠', fg: '#b48cff', bg };
     return { ch: hash(x, y, 7) < 0.5 ? '.' : ',', fg, bg };
   }
 
@@ -177,14 +184,19 @@ export class Renderer {
         let cell = this.tileCell(engine, x, y, z);
 
         const job = engine.jobs.designationAt(x, y, z, engine);
-        if (job) {
-          const g = JOB_GLYPH[job.type];
+        if (job?.type === JobType.CRAFT) {
+          // a busy workshop: keep its glyph, light it up
+          cell = { ch: cell.ch, fg: cell.fg, bg: job.worker ? '#7a4a10' : cell.bg };
+        } else if (job) {
+          const g = job.type === JobType.BUILD ? BUILDINGS[job.arg as Building].glyph : JOB_GLYPH[job.type];
           cell = { ch: g ?? cell.ch, fg: '#ffe27a', bg: job.worker ? '#6b5a14' : '#4a4012' };
         }
         const ent = entityAt.get(y * w.width + x);
         if (ent) {
           const v = ENTITY_VIEW[ent.type];
-          cell = { ch: v.ch, fg: v.fg, bg: ent === view.selected ? '#3b5bb0' : cell.bg };
+          const ch = ent.type === EntityType.ANIMAL ? ent.name[0] : v.ch;
+          const bg = ent === view.selected ? '#3b5bb0' : ent.type === EntityType.ANIMAL && engine.jobs.huntFor(ent.id) ? '#7a1f1f' : cell.bg;
+          cell = { ch, fg: v.fg, bg };
         }
 
         c.fillStyle = cell.bg;

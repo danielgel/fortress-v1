@@ -41,20 +41,41 @@ html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
 h2 { margin: 0 0 8px; font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
 ul { list-style: none; margin: 0; padding: 0; }
 
-.stock { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 6px; }
-.stock div { background: var(--panel-2); border-radius: 4px; padding: 4px 6px; display: flex; flex-direction: column; }
-.stock span { color: var(--muted); font-size: 10px; }
-.stock b { font-size: 15px; }
+#stock h3 { margin: 8px 0 4px; font-size: 10px; font-weight: 600; color: var(--muted); }
+#stock h3:first-child { margin-top: 0; }
+.stock { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+.stock div { background: var(--panel-2); border-radius: 4px; padding: 3px 5px; display: flex; flex-direction: column; min-width: 0; }
+.stock span { color: var(--muted); font-size: 9px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.stock b { font-size: 14px; }
+.stock em { font-style: normal; font-size: 10px; font-weight: 400; color: var(--muted); margin-left: 2px; }
+.stock .zero b { color: #55555f; }
 .stock .bad b { color: var(--bad); }
+.small { font-size: 11px; margin-top: 6px; }
+.good { color: var(--good); }
 
 #dwarves { max-height: 220px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
 .dwarf { padding: 4px 6px; border-radius: 4px; background: var(--panel-2); cursor: pointer; border: 1px solid transparent; }
 .dwarf.sel { border-color: #3b5bb0; }
-.dwarf .row { display: flex; justify-content: space-between; gap: 8px; }
-.bars { display: flex; gap: 4px; margin-top: 3px; }
-.bar { flex: 1; height: 4px; background: #2c2c38; border-radius: 2px; overflow: hidden; }
-.bar i { display: block; height: 100%; background: #5b9bd5; }
-.bar.bad i { background: var(--bad); }
+.dwarf .row { display: flex; gap: 6px; align-items: baseline; }
+.dwarf .row .job { margin-left: auto; white-space: nowrap; }
+.dwarf .tools { font-size: 10px; color: #c9a65a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 4px; }
+.bars.legend { margin: 0 0 4px; padding: 0 7px; font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; cursor: help; }
+.bar { height: 6px; background: #2c2c38; border-radius: 3px; overflow: hidden; cursor: help; }
+.bar i { display: block; height: 100%; background: var(--good); }
+.bar.mid i { background: #e0b040; }
+.bar.low i { background: var(--bad); }
+.tile .detail { margin-top: 6px; padding-top: 6px; border-top: 1px dotted var(--line); }
+.tile kbd { color: var(--accent); }
+
+#buildbar { position: absolute; top: 8px; left: 8px; right: 8px; display: none; flex-wrap: wrap; gap: 4px; pointer-events: none; }
+#buildbar.show { display: flex; }
+#buildbar button { pointer-events: auto; display: flex; align-items: baseline; gap: 5px; padding: 3px 8px; background: rgba(27, 27, 35, 0.94); }
+#buildbar button .g { font-weight: 700; }
+#buildbar button small { color: var(--muted); font-size: 10px; }
+#buildbar button.short { opacity: 0.55; }
+#buildbar button.on { background: var(--accent); color: #1a1405; opacity: 1; }
+#buildbar button.on small, #buildbar button.on .g { color: #1a1405 !important; }
 
 .tile div { margin-bottom: 2px; line-height: 1.35; }
 #log li { padding: 2px 0; line-height: 1.35; border-bottom: 1px dotted var(--line); }
@@ -80,7 +101,15 @@ dialog h3 { margin: 12px 0 4px; font-size: 11px; letter-spacing: 0.1em; text-tra
 dialog p { margin: 4px 0; line-height: 1.7; }
 dialog .cols { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
 dialog form { margin-top: 16px; text-align: right; }
-dialog button { background: var(--accent); color: #1a1405; font-weight: 700; }
+dialog form button { background: var(--accent); color: #1a1405; font-weight: 700; }
+#orders { width: min(680px, 94vw); }
+#orders table { width: 100%; border-collapse: collapse; }
+#orders td, #orders th { padding: 4px 6px; text-align: left; vertical-align: middle; border-bottom: 1px dotted var(--line); }
+#orders tr.ws th { padding-top: 12px; color: var(--accent); font-size: 12px; border-bottom: 1px solid var(--line); }
+#orders .num { text-align: right; font-weight: 700; width: 3ch; }
+#orders .ctl { white-space: nowrap; }
+#orders .ctl button { padding: 2px 7px; margin-right: 2px; }
+#orders #orders-body { max-height: 60dvh; overflow-y: auto; }
 
 @media (max-width: 820px) {
   #app { grid-template-columns: minmax(0, 1fr); grid-template-areas: "top" "stage" "tools"; }
@@ -91,4 +120,5 @@ dialog button { background: var(--accent); color: #1a1405; font-weight: 700; }
   #weather, .brand { display: none; }
   #toolbar { padding: 6px 8px; gap: 6px; }
   dialog .cols { grid-template-columns: 1fr; }
+  #orders td:last-child { display: none; }
 }

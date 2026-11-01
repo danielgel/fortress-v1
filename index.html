@@ -28,16 +28,20 @@
 
       <main id="stage">
         <canvas id="map" tabindex="0" aria-label="Game map"></canvas>
+        <div id="buildbar"></div>
         <div id="hint" role="status"></div>
       </main>
 
       <aside id="side">
         <section>
           <h2>Stocks</h2>
-          <div id="stock" class="stock"></div>
+          <div id="stock"></div>
         </section>
         <section>
           <h2>Dwarves <span id="dwarf-count"></span></h2>
+          <div class="bars legend" title="Each bar is full when the dwarf is doing well. Hover a bar for details.">
+            <span>Food</span><span>Drink</span><span>Rest</span><span>Health</span><span>Mood</span>
+          </div>
           <ul id="dwarves"></ul>
         </section>
         <section>
@@ -55,14 +59,20 @@
           <button data-mode="dig" title="Dig (D)"><kbd>D</kbd>ig</button>
           <button data-mode="stairs" title="Dig stairs down (V)"><kbd>V</kbd> Stairs</button>
           <button data-mode="chop" title="Chop trees (C)"><kbd>C</kbd>hop</button>
-          <button data-mode="gather" title="Gather shrubs (G)"><kbd>G</kbd>ather</button>
-          <button data-mode="build" title="Build wall (B)"><kbd>B</kbd>uild</button>
+          <button data-mode="gather" title="Gather shrubs and mushrooms (G)"><kbd>G</kbd>ather</button>
+          <button data-mode="fish" title="Fish (F)"><kbd>F</kbd>ish</button>
+          <button data-mode="hunt" title="Hunt animals (H)"><kbd>H</kbd>unt</button>
+          <button data-mode="build" title="Build walls, furniture, workshops (B)"><kbd>B</kbd>uild</button>
+          <button data-mode="remove" title="Remove furniture or workshops (R)"><kbd>R</kbd>emove</button>
           <button data-mode="teleport" title="Teleport a dwarf (T)"><kbd>T</kbd>eleport</button>
           <button data-mode="cancel" title="Cancel designations (X)">Cancel <kbd>X</kbd></button>
         </div>
         <div class="group">
           <button data-act="zup" title="Up a level (&lt; or PgUp)">▲ Z</button>
           <button data-act="zdown" title="Down a level (&gt; or PgDn)">▼ Z</button>
+        </div>
+        <div class="group">
+          <button data-act="orders" title="Work orders for workshops (O)"><kbd>O</kbd>rders</button>
         </div>
         <div class="group">
           <button data-act="save" title="Save (P)">Save</button>
@@ -79,10 +89,16 @@
       <div class="cols">
         <div>
           <h3>Designate</h3>
-          <p><kbd>D</kbd> dig &nbsp;<kbd>V</kbd> stairs down &nbsp;<kbd>C</kbd> chop &nbsp;<kbd>G</kbd> gather &nbsp;<kbd>B</kbd> wall (costs 1 stone) &nbsp;<kbd>T</kbd> teleport &nbsp;<kbd>X</kbd> cancel</p>
+          <p><kbd>D</kbd> dig &nbsp;<kbd>V</kbd> stairs down &nbsp;<kbd>C</kbd> chop &nbsp;<kbd>G</kbd> gather &nbsp;<kbd>F</kbd> fish &nbsp;<kbd>H</kbd> hunt &nbsp;<kbd>T</kbd> teleport &nbsp;<kbd>X</kbd> cancel</p>
           <p>Drag a rectangle with the mouse, or press <kbd>Enter</kbd> twice with the keyboard cursor. <kbd>Esc</kbd> leaves the tool.</p>
+          <h3>Build &amp; make</h3>
+          <p><kbd>B</kbd> build walls, furniture and workshops (<kbd>[</kbd> <kbd>]</kbd> pick what) &nbsp;<kbd>R</kbd> remove it again. <kbd>O</kbd> work orders tell workshops what to make.</p>
+          <h3>Tools</h3>
+          <p>Mining needs a <b>pick</b>, chopping an <b>axe</b>, fishing a <b>rod</b>, hunting a <b>spear</b>. Dwarves grab one from the stockpile. Smelt ore into metal and forge more.</p>
+          <h3>Dwarves</h3>
+          <p>The five bars are <b>food, drink, rest, health, mood</b>; full is good. Beds, tables and chairs, cooked meals, booze and statues keep dwarves happy, and happy dwarves work faster.</p>
           <h3>Tips</h3>
-          <p>The surface is level 0. To go underground, dig <b>stairs</b> on the surface, then dig rooms on the level below. Mind the lakes and the magma below.</p>
+          <p>The surface is level 0. To go underground, dig <b>stairs</b> on the surface, then dig rooms on the level below. Doors keep goblins out.</p>
         </div>
         <div>
           <h3>Move</h3>
@@ -94,6 +110,13 @@
         </div>
       </div>
       <form method="dialog"><button autofocus>Start playing</button></form>
+    </dialog>
+
+    <dialog id="orders">
+      <h1>Work orders</h1>
+      <p class="muted">Queue items, or set <b>keep</b> to restock automatically. Idle dwarves do the work at a matching workshop (build one with <kbd>B</kbd>).</p>
+      <div id="orders-body"></div>
+      <form method="dialog"><button autofocus>Close</button></form>
     </dialog>
 
     <script type="module" src="/src/main.ts"></script>

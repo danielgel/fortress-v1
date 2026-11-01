@@ -1,34 +1,52 @@
 import { SPEED_TPS, TickClock } from '../core/clock';
 import type { Entity } from '../entities/entity';
+import { BUILD_MENU, WALL, type Building } from '../game/content';
 import type { GameEngine } from '../game/engine';
 import { JobType } from '../jobs/job';
 import type { Pos } from '../world/types';
 import type { Renderer, ViewState } from './renderer';
 
-export type Mode = 'dig' | 'stairs' | 'chop' | 'gather' | 'build' | 'teleport' | 'cancel';
+export type Mode = 'dig' | 'stairs' | 'chop' | 'gather' | 'fish' | 'hunt' | 'build' | 'remove' | 'teleport' | 'cancel';
 
 const MODE_JOB: Record<Exclude<Mode, 'cancel'>, JobType> = {
   dig: JobType.DIG,
   stairs: JobType.STAIRS,
   chop: JobType.CHOP,
   gather: JobType.GATHER,
+  fish: JobType.FISH,
+  hunt: JobType.HUNT,
   build: JobType.BUILD,
+  remove: JobType.REMOVE,
   teleport: JobType.TELEPORT,
 };
 
-const MODE_KEYS: Record<string, Mode> = { d: 'dig', v: 'stairs', c: 'chop', g: 'gather', b: 'build', t: 'teleport', x: 'cancel' };
+const MODE_KEYS: Record<string, Mode> = {
+  d: 'dig',
+  v: 'stairs',
+  c: 'chop',
+  g: 'gather',
+  f: 'fish',
+  h: 'hunt',
+  b: 'build',
+  r: 'remove',
+  t: 'teleport',
+  x: 'cancel',
+};
 
 export interface ControllerHooks {
   onSave(): void;
   onLoad(): void;
   onNew(): void;
   onHelp(): void;
+  onOrders(): void;
   toast(text: string): void;
 }
 
 /** Turns keyboard / mouse / touch input into engine commands and view state. */
 export class Controller {
   mode: Mode | null = null;
+  /** What the build tool places (WALL = a stone wall). */
+  buildKind: Building = WALL;
   z = 0;
   cursor: Pos = { x: 0, y: 0, z: 0 };
   anchor: Pos | null = null;
@@ -68,6 +86,16 @@ export class Controller {
     if (this.drag) selection = { a: this.drag.start, b: this.cursor };
     else if (this.anchor) selection = { a: this.anchor, b: this.cursor };
     return { z: this.z, cursor: this.cursor, selection, selected: this.selected };
+  }
+
+  setBuildKind(kind: Building): void {
+    this.buildKind = kind;
+    this.mode = 'build';
+  }
+
+  private cycleBuildKind(dir: number): void {
+    const i = BUILD_MENU.indexOf(this.buildKind);
+    this.setBuildKind(BUILD_MENU[(i + dir + BUILD_MENU.length) % BUILD_MENU.length]);
   }
 
   setMode(mode: Mode | null): void {
@@ -128,10 +156,11 @@ export class Controller {
       return;
     }
     const type = MODE_JOB[this.mode];
-    const n = type === JobType.TELEPORT ? this.teleportTo(b) : e.designateArea(type, a, b);
+    const arg = this.mode === 'build' ? this.buildKind : 0;
+    const n = type === JobType.TELEPORT ? this.teleportTo(b) : e.designateArea(type, a, b, arg);
     if (n === 0) {
       const single = a.x === b.x && a.y === b.y;
-      const reason = single ? e.jobs.designate(e, type, b) : 'no valid tiles';
+      const reason = single ? e.jobs.designate(e, type, b, 1, arg) : 'no valid tiles';
       this._hooks.toast(typeof reason === 'string' ? `Can't do that: ${reason}` : 'Designated');
     } else this._hooks.toast(`Designated ${n} tile${n > 1 ? 's' : ''}`);
   }
@@ -154,7 +183,7 @@ export class Controller {
   private bindKeyboard(): void {
     window.addEventListener('keydown', (ev) => {
       if (ev.ctrlKey || ev.metaKey || ev.altKey) return;
-      if ((document.activeElement as HTMLElement | null)?.closest?.('dialog[open]')) return;
+      if (document.querySelector('dialog[open]')) return;
       const k = ev.key.toLowerCase();
       let handled = true;
       switch (ev.key) {
@@ -198,6 +227,10 @@ export class Controller {
         case '?':
           this._hooks.onHelp();
           break;
+        case '[':
+        case ']':
+          this.cycleBuildKind(ev.key === ']' ? 1 : -1);
+          break;
         default:
           handled = false;
       }
@@ -208,6 +241,7 @@ export class Controller {
         else if (k === 'p') this._hooks.onSave();
         else if (k === 'l') this._hooks.onLoad();
         else if (k === 'n') this._hooks.onNew();
+        else if (k === 'o') this._hooks.onOrders();
         else handled = false;
       }
       if (handled) ev.preventDefault();

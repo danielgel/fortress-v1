@@ -1,4 +1,5 @@
 import { findPath, type PathfindingConstraints, DEFAULT_CONSTRAINTS } from '../nav/astar';
+import { Building } from '../game/content';
 import { Flag, type Pos } from '../world/types';
 import type { Entity } from './entity';
 import type { GameEngine } from '../game/engine';
@@ -25,25 +26,47 @@ export class PhysicalComponent implements Component {
 }
 
 export class MentalComponent implements Component {
+  /** Most recent thing that changed this dwarf's mood. */
+  thought = '';
   constructor(
     public happiness = 60,
     public stress = 0,
   ) {}
-  update(_ctx: GameEngine, owner: Entity): void {
+  update(ctx: GameEngine, owner: Entity): void {
     const n = owner.needs;
     if (!n) return;
-    // unmet needs sour the mood; satisfied dwarves slowly recover
+    // unmet needs sour the mood; otherwise it drifts back towards content (50)
     const misery = Math.max(0, n.hunger - 60) + Math.max(0, n.thirst - 60) + Math.max(0, n.fatigue - 70);
-    this.happiness = clamp(this.happiness + (misery > 0 ? -misery / 4000 : 0.01) );
+    this.happiness = clamp(this.happiness + (misery > 0 ? -misery / 4000 : (50 - this.happiness) * 0.0004));
     this.stress = clamp(this.stress + (misery > 0 ? misery / 6000 : -0.01));
+    if ((ctx.tick + owner.id) % 60 === 0 && nearStatue(ctx, owner.pos)) this.feel('admired a statue', 1.5);
+  }
+  /** Something nice (or not) happened. */
+  feel(thought: string, delta: number): void {
+    this.thought = thought;
+    this.happiness = clamp(this.happiness + delta);
+  }
+  /** Work-time multiplier: miserable dwarves dawdle, happy ones hurry. */
+  get workFactor(): number {
+    return this.happiness < 25 ? 1.4 : this.happiness > 70 ? 0.85 : 1;
   }
 }
 
-export type SkillType = 'mining' | 'woodcutting' | 'foraging' | 'construction';
-export const SKILL_TYPES: SkillType[] = ['mining', 'woodcutting', 'foraging', 'construction'];
+function nearStatue(ctx: GameEngine, p: Pos): boolean {
+  const w = ctx.world;
+  for (const i of w.buildingTiles) {
+    if (w.building[i] !== Building.STATUE) continue;
+    const s = w.pos(i);
+    if (s.z === p.z && Math.abs(s.x - p.x) <= 4 && Math.abs(s.y - p.y) <= 4) return true;
+  }
+  return false;
+}
+
+export type SkillType = 'mining' | 'woodcutting' | 'foraging' | 'construction' | 'fishing' | 'hunting' | 'crafting' | 'cooking';
+export const SKILL_TYPES: SkillType[] = ['mining', 'woodcutting', 'foraging', 'construction', 'fishing', 'hunting', 'crafting', 'cooking'];
 
 export class SkillComponent implements Component {
-  xp: Record<SkillType, number> = { mining: 0, woodcutting: 0, foraging: 0, construction: 0 };
+  xp: Record<SkillType, number> = { mining: 0, woodcutting: 0, foraging: 0, construction: 0, fishing: 0, hunting: 0, crafting: 0, cooking: 0 };
   level(skill: SkillType): number {
     return Math.floor(Math.sqrt(this.xp[skill] / 10));
   }
@@ -107,7 +130,7 @@ export class MovementComponent implements Component {
       return 'moving';
     }
     const next = this.path[0];
-    if (!ctx.world.walkable(next.x, next.y, next.z)) {
+    if (!ctx.world.walkable(next.x, next.y, next.z) || (!this.constraints.canOpenDoors && ctx.world.has(next.x, next.y, next.z, Flag.DOOR))) {
       this.path = [];
       return 'blocked';
     }

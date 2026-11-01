@@ -1,3 +1,4 @@
+import { BUILDINGS, Building } from '../game/content';
 import { Feature, Flag, Material, type Pos } from './types';
 
 /** The whole world as flat typed arrays. z=0 is the surface, higher z is deeper. */
@@ -8,6 +9,10 @@ export class World {
   readonly feature: Uint8Array;
   readonly water: Uint8Array;
   readonly magma: Uint8Array;
+  /** Furniture / workshop on each tile (see Building). */
+  readonly building: Uint8Array;
+  /** Indices of every tile that holds a building, for quick lookups. */
+  readonly buildingTiles = new Set<number>();
   /** Surface biome per (x,y) column. */
   readonly biome: Uint8Array;
   currentZ = 0;
@@ -25,6 +30,7 @@ export class World {
     this.feature = new Uint8Array(this.size);
     this.water = new Uint8Array(this.size);
     this.magma = new Uint8Array(this.size);
+    this.building = new Uint8Array(this.size);
     this.biome = new Uint8Array(width * height);
   }
 
@@ -64,6 +70,7 @@ export class World {
     const i = this.idx(x, y, z);
     if (!(this.flags[i] & Flag.OPEN)) return false;
     if (this.feature[i] === Feature.TREE) return false;
+    if (this.building[i] && !BUILDINGS[this.building[i] as Building].walkable) return false;
     return this.magma[i] === 0 && this.water[i] <= 3;
   }
 
@@ -97,6 +104,26 @@ export class World {
     this.flags[i] &= ~(Flag.OPEN | Flag.STAIRS_UP | Flag.STAIRS_DOWN | Flag.DOOR);
     this.material[i] = material;
     this.feature[i] = Feature.NONE;
+    this.setBuilding(x, y, z, Building.NONE);
+  }
+
+  buildingAt(x: number, y: number, z: number): Building {
+    return this.inBounds(x, y, z) ? this.building[this.idx(x, y, z)] : Building.NONE;
+  }
+
+  setBuilding(x: number, y: number, z: number, b: Building): void {
+    const i = this.idx(x, y, z);
+    this.building[i] = b;
+    if (b === Building.NONE) this.buildingTiles.delete(i);
+    else this.buildingTiles.add(i);
+    if (b === Building.DOOR) this.flags[i] |= Flag.DOOR;
+    else this.flags[i] &= ~Flag.DOOR;
+  }
+
+  /** Rebuild the building index from the raw array (after loading). */
+  indexBuildings(): void {
+    this.buildingTiles.clear();
+    for (let i = 0; i < this.size; i++) if (this.building[i]) this.buildingTiles.add(i);
   }
 
   setStairsDown(x: number, y: number, z: number): void {

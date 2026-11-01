@@ -1,6 +1,8 @@
 import './style.css';
 import { hasSave, loadFromStorage, saveToStorage } from './core/save';
 import { GameEngine } from './game/engine';
+import { addOrder, toggleKeep } from './game/production';
+import type { Building } from './game/content';
 import { Controller } from './ui/controller';
 import { Hud } from './ui/hud';
 import { Renderer } from './ui/renderer';
@@ -8,6 +10,7 @@ import { Renderer } from './ui/renderer';
 const canvas = document.getElementById('map') as HTMLCanvasElement;
 const stage = document.getElementById('stage') as HTMLElement;
 const help = document.getElementById('help') as HTMLDialogElement;
+const orders = document.getElementById('orders') as HTMLDialogElement;
 const hint = document.getElementById('hint') as HTMLElement;
 
 const renderer = new Renderer(canvas);
@@ -35,6 +38,11 @@ const controller = new Controller(engine, renderer, canvas, {
     toast('A new expedition begins');
   },
   onHelp: () => (help.open ? help.close() : help.showModal()),
+  onOrders: () => {
+    if (orders.open) return orders.close();
+    hud.renderOrders();
+    orders.showModal();
+  },
   toast,
 });
 const hud = new Hud(controller);
@@ -78,7 +86,22 @@ document.getElementById('toolbar')!.addEventListener('click', (ev) => {
     case 'help':
       controller.hooks().onHelp();
       break;
+    case 'orders':
+      controller.hooks().onOrders();
+      break;
   }
+});
+document.getElementById('buildbar')!.addEventListener('click', (ev) => {
+  const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-build]');
+  if (b) controller.setBuildKind(Number(b.dataset.build) as Building);
+  hud.update();
+});
+orders.addEventListener('click', (ev) => {
+  const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('button');
+  if (!b) return;
+  if (b.dataset.order) addOrder(controller.engine, b.dataset.order, Number(b.dataset.n));
+  if (b.dataset.keep) toggleKeep(controller.engine, b.dataset.keep);
+  hud.renderOrders();
 });
 document.getElementById('speed')!.addEventListener('click', (ev) => {
   const b = (ev.target as HTMLElement).closest('button');

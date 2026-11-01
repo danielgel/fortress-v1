@@ -4,10 +4,13 @@ import { MentalComponent, NeedsComponent, PhysicalComponent, SkillComponent } fr
 import { Job, type JobType } from '../jobs/job';
 import { WeatherType } from '../world/weather';
 import { World } from '../world/world';
+import { defaultStock } from '../game/content';
 import { rleDecode, rleEncode } from './codec';
 
 const KEY = 'fortress-save-v2';
-const VERSION = 2;
+const VERSION = 3;
+/** Older versions we can still read (missing fields fall back to defaults). */
+const READABLE = [2, 3];
 
 export function serialize(engine: GameEngine): string {
   const w = engine.world;
@@ -18,6 +21,7 @@ export function serialize(engine: GameEngine): string {
     rngState: engine.rng.state,
     embark: engine.embark,
     stock: engine.stock,
+    orders: engine.orders,
     weather: engine.weather.current,
     dims: [w.width, w.height, w.depth],
     arrays: {
@@ -26,6 +30,7 @@ export function serialize(engine: GameEngine): string {
       feature: rleEncode(w.feature),
       water: rleEncode(w.water),
       magma: rleEncode(w.magma),
+      building: rleEncode(w.building),
       biome: rleEncode(w.biome),
     },
     nextEntityId: engine.entities.nextId,
@@ -38,15 +43,16 @@ export function serialize(engine: GameEngine): string {
       mental: e.mental,
       skills: e.skills?.xp,
       needs: e.needs,
+      tools: e.tools,
     })),
-    jobs: [...engine.jobs.jobs.values()].map((j) => ({ id: j.id, type: j.type, pos: j.pos, priority: j.priority, attempts: j.attempts })),
+    jobs: [...engine.jobs.jobs.values()].map((j) => ({ id: j.id, type: j.type, pos: j.pos, priority: j.priority, attempts: j.attempts, arg: j.arg })),
     log: engine.logEntries.slice(-50),
   });
 }
 
 export function deserialize(text: string): GameEngine {
   const d = JSON.parse(text);
-  if (d.version !== VERSION) throw new Error(`Unsupported save version ${d.version}`);
+  if (!READABLE.includes(d.version)) throw new Error(`Unsupported save version ${d.version}`);
   const [width, height, depth] = d.dims as number[];
   const world = new World(width, height, depth);
   world.material.set(rleDecode(d.arrays.material, world.size));
@@ -55,19 +61,23 @@ export function deserialize(text: string): GameEngine {
   world.water.set(rleDecode(d.arrays.water, world.size));
   world.magma.set(rleDecode(d.arrays.magma, world.size));
   world.biome.set(rleDecode(d.arrays.biome, world.biome.length));
+  if (d.arrays.building) world.building.set(rleDecode(d.arrays.building, world.size));
+  world.indexBuildings();
 
   const engine = new GameEngine(world, d.seed);
   engine.tick = d.tick;
   engine.calendar.tick = d.tick;
   engine.rng.state = d.rngState;
   engine.embark = d.embark;
-  engine.stock = d.stock;
+  engine.stock = { ...defaultStock(), ...d.stock };
+  engine.orders = d.orders ?? {};
   engine.weather.current = d.weather as WeatherType;
   engine.attachWorld(world);
   engine.logEntries.push(...d.log);
 
   for (const s of d.entities) {
     const e = new Entity(s.id, s.type as EntityType, s.name, s.pos);
+    e.tools = s.tools ?? [];
     if (s.physical) e.physical = Object.assign(new PhysicalComponent(), s.physical);
     if (s.mental) e.mental = Object.assign(new MentalComponent(), s.mental);
     if (s.needs) e.needs = Object.assign(new NeedsComponent(), s.needs);
@@ -83,7 +93,7 @@ export function deserialize(text: string): GameEngine {
   engine.entities.nextId = d.nextEntityId;
 
   for (const j of d.jobs) {
-    engine.jobs.restore(engine, new Job(j.id, j.type as JobType, j.pos, j.priority));
+    engine.jobs.restore(engine, new Job(j.id, j.type as JobType, j.pos, j.priority, false, j.arg ?? 0));
   }
   return engine;
 }

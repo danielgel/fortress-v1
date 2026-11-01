@@ -13,14 +13,10 @@ import { clearEmbark, defaultParameters, findEmbarkSite, generateWorld, type Wor
 import { Feature, Flag, Material, type Pos } from '../world/types';
 import { WEATHER_NAMES, WeatherSystem } from '../world/weather';
 import type { World } from '../world/world';
+import { Building, defaultStock, type Stock } from './content';
+import { processOrders, type Orders } from './production';
 
-export interface Stock {
-  stone: number;
-  ore: number;
-  gems: number;
-  wood: number;
-  food: number;
-}
+export type { Stock } from './content';
 
 export interface LogEntry {
   tick: number;
@@ -36,7 +32,8 @@ export class GameEngine {
   readonly jobs = new JobManager();
   readonly calendar = new WorldCalendar();
   readonly weather = new WeatherSystem();
-  stock: Stock = { stone: 0, ore: 0, gems: 0, wood: 0, food: 30 };
+  stock: Stock = defaultStock();
+  orders: Orders = {};
   readonly logEntries: LogEntry[] = [];
   embark = { x: 0, y: 0 };
   climate!: RegionClimate;
@@ -122,6 +119,9 @@ export class GameEngine {
     if (!victim.alive) return;
     if (victim.job) this.jobs.release(victim.job);
     victim.job = null;
+    // the fallen dwarf's tools go back to the stockpile
+    for (const t of victim.tools) this.stock[t]++;
+    victim.tools = [];
     this.entities.remove(victim);
     if (victim.type === EntityType.DWARF) this.log('DWARF_DIED', `${victim.name} has died${killer ? ` (killed by a ${killer.name})` : ''}.`);
     else if (victim.type === EntityType.MONSTER) this.log('CREATURE_SPAWNED', `A ${victim.name} was slain.`);
@@ -139,6 +139,7 @@ export class GameEngine {
     if (changed !== null) this.log('WEATHER_CHANGED', `The weather turns to ${WEATHER_NAMES[changed].toLowerCase()}.`);
 
     if (this.tick % 5 === 0) this.fluids.update();
+    if (this.tick % 10 === 0) processOrders(this);
 
     for (const e of [...this.entities.all.values()]) {
       if (!e.alive) continue;
@@ -174,12 +175,27 @@ export class GameEngine {
       }
     }
 
-    if (this.stock.food < 8) this.log('RESOURCE_DEPLETED', `Food is running low (${this.stock.food} left)!`);
+    this.regrowMushrooms();
+    const food = this.stock.food + this.stock.meals;
+    if (food < 8) this.log('RESOURCE_DEPLETED', `Food is running low (${food} left)!`);
     const day = this.calendar.day;
     const dwarves = this.entities.dwarves;
     if (day > 0 && day % 18 === 0 && dwarves.length < 30) this.spawnMigrants();
     if (day >= 24 && this.entities.ofType(EntityType.MONSTER).length === 0 && this.rng.chance(0.06)) this.spawnInvasion();
     if (this.entities.ofType(EntityType.ANIMAL).length < 4) this.spawnNear(EntityType.ANIMAL, this.embark, 30);
+  }
+
+  /** Cavern floors sprout new mushrooms, whatever the season above. */
+  private regrowMushrooms(): void {
+    const w = this.world;
+    for (let n = 0; n < 300; n++) {
+      const z = 3 + this.rng.int(Math.max(1, w.depth - 3));
+      if (z >= w.depth) continue;
+      const i = w.idx(this.rng.int(w.width), this.rng.int(w.height), z);
+      if (w.flags[i] & Flag.OPEN && w.feature[i] === Feature.NONE && w.building[i] === Building.NONE && !w.water[i] && !w.magma[i] && this.rng.chance(0.25)) {
+        w.feature[i] = Feature.MUSHROOM;
+      }
+    }
   }
 
   spawnMigrants(): void {
@@ -199,11 +215,11 @@ export class GameEngine {
   }
 
   /** Designate every tile in a rectangle on one z-level. Returns how many were accepted. */
-  designateArea(type: JobType, a: Pos, b: Pos): number {
+  designateArea(type: JobType, a: Pos, b: Pos, arg = 0): number {
     let n = 0;
     for (let y = Math.min(a.y, b.y); y <= Math.max(a.y, b.y); y++) {
       for (let x = Math.min(a.x, b.x); x <= Math.max(a.x, b.x); x++) {
-        if (typeof this.jobs.designate(this, type, { x, y, z: a.z }) !== 'string') n++;
+        if (typeof this.jobs.designate(this, type, { x, y, z: a.z }, 1, arg) !== 'string') n++;
       }
     }
     return n;
