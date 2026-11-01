@@ -2,7 +2,7 @@
 
 A Dwarf Fortress–inspired colony sim that runs entirely in the browser. TypeScript, Vite, a single `<canvas>`, no runtime dependencies (~18 kB gzipped).
 
-Guide a band of dwarves: designate digging, chopping and foraging; they pick up work, eat, drink and sleep on their own. Dig stairs down from the surface, carve out rooms, break into caverns, and watch out for flooded pockets, magma and goblin raids.
+Guide a band of dwarves: designate digging, chopping, fishing and hunting; build workshops, furniture and doors, and queue work orders. Dwarves pick up work and look after their own food, drink, sleep and mood. Dig stairs down from the surface, carve out rooms, break into caverns, and watch out for flooded pockets, magma and goblin raids.
 
 ## Run it
 
@@ -31,11 +31,15 @@ Cloudflare Pages also works: build command `npm run build`, output directory `di
 | Arrows / mouse | move cursor |
 | Shift+arrows, right-drag | pan camera |
 | `<` `>` / PgUp PgDn / wheel | change level (0 = surface, higher = deeper) |
-| `D` `V` `C` `G` `B` `T` `X` | dig · stairs down · chop · gather · build wall · teleport · cancel |
+| `D` `V` `C` `G` `F` `H` | dig · stairs down · chop · gather · fish · hunt |
+| `B` `[` `]` · `R` | build (walls, furniture, workshops; brackets pick what) · remove |
+| `O` | work orders for workshops |
+| `T` `X` | teleport · cancel |
 | Drag, or `Enter` twice | apply the tool to a rectangle |
 | `Space`, `1`–`4` | pause, speed |
 | `Tab` | cycle dwarves |
-| `P` `L` `N` | save · load · new world (autosaves each season) |
+| `Esc` | main menu (pauses the game) |
+| `P` `L` `N` | save · load · new game (autosaves each season) |
 | `?` | help |
 
 ## How it's organised

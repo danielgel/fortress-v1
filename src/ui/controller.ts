@@ -39,6 +39,7 @@ export interface ControllerHooks {
   onNew(): void;
   onHelp(): void;
   onOrders(): void;
+  onMenu(): void;
   toast(text: string): void;
 }
 
@@ -216,7 +217,8 @@ export class Controller {
           if (this.anchor || this.drag) {
             this.anchor = null;
             this.drag = null;
-          } else this.mode = null;
+          } else if (this.mode) this.mode = null;
+          else this._hooks.onMenu();
           break;
         case ' ':
           this.clock.paused = !this.clock.paused;

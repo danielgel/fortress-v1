@@ -11,7 +11,7 @@
   <body>
     <div id="app">
       <header id="topbar">
-        <span class="brand">⛏ Fortress</span>
+        <button class="brand" data-act="menu" title="Main menu (Esc)">☰ Fortress</button>
         <span id="date"></span>
         <span id="weather"></span>
         <span class="spacer"></span>
@@ -77,7 +77,8 @@
         <div class="group">
           <button data-act="save" title="Save (P)">Save</button>
           <button data-act="load" title="Load (L)">Load</button>
-          <button data-act="new" title="New world (N)">New</button>
+          <button data-act="new" title="New game (N)">New</button>
+          <button data-act="menu" title="Main menu (Esc)">Menu</button>
           <button data-act="help" title="Help (?)">?</button>
         </div>
       </footer>
@@ -110,6 +111,53 @@
         </div>
       </div>
       <form method="dialog"><button autofocus>Start playing</button></form>
+    </dialog>
+
+    <dialog id="menu" aria-label="Main menu">
+      <h1 class="logo">FORTRESS</h1>
+      <div class="rule" aria-hidden="true">═════════ ☼ ═════════</div>
+      <p class="tagline"><span class="t">♣</span> <span class="d">@</span><span class="d">@</span><span class="d">@</span> <span class="w">≈</span> <span class="o">◊</span> <span class="g">♦</span> &nbsp;Dig deep. Build well. Keep your dwarves alive.</p>
+
+      <div class="menu-list" data-view="main">
+        <button data-menu="continue" class="primary"><b>Continue</b><small></small></button>
+        <button data-menu="new"><b>New game</b><small>Choose a world and an expedition</small></button>
+        <button data-menu="load"><b>Load last save</b><small>Go back to your last save</small></button>
+        <button data-menu="help"><b>How to play</b><small>Controls and tips</small></button>
+      </div>
+
+      <form id="new-game" class="new-game" data-view="new" hidden>
+        <label class="field">
+          <span>World seed</span>
+          <span class="seed-row">
+            <input id="opt-seed" name="seed" autocomplete="off" spellcheck="false" placeholder="a number or any word" />
+            <button type="button" data-menu="reroll" title="Pick a random seed">Random</button>
+          </span>
+          <small class="muted">The same seed always makes the same world.</small>
+        </label>
+        <fieldset class="field">
+          <legend>World size</legend>
+          <div class="seg">
+            <label><input type="radio" name="size" value="small" /><span><b>Small</b><small>80×80, 8 deep</small></span></label>
+            <label><input type="radio" name="size" value="medium" checked /><span><b>Medium</b><small>100×100, 10 deep</small></span></label>
+            <label><input type="radio" name="size" value="large" /><span><b>Large</b><small>140×140, 12 deep</small></span></label>
+          </div>
+        </fieldset>
+        <fieldset class="field">
+          <legend>Expedition</legend>
+          <div class="seg">
+            <label><input type="radio" name="dwarves" value="5" /><span><b>5 dwarves</b><small>A hardy few</small></span></label>
+            <label><input type="radio" name="dwarves" value="7" checked /><span><b>7 dwarves</b><small>The classic</small></span></label>
+            <label><input type="radio" name="dwarves" value="10" /><span><b>10 dwarves</b><small>Many mouths</small></span></label>
+          </div>
+        </fieldset>
+        <p id="opt-warn" class="warn">Your current autosave will be replaced.</p>
+        <div class="actions">
+          <button type="button" data-menu="back">Back</button>
+          <button type="submit" class="primary">Embark</button>
+        </div>
+      </form>
+
+      <p class="menu-foot muted">Esc resumes · autosaves every season</p>
     </dialog>
 
     <dialog id="orders">

@@ -1,10 +1,11 @@
 import './style.css';
-import { hasSave, loadFromStorage, saveToStorage } from './core/save';
+import { loadFromStorage, saveToStorage } from './core/save';
 import { GameEngine } from './game/engine';
 import { addOrder, toggleKeep } from './game/production';
 import type { Building } from './game/content';
 import { Controller } from './ui/controller';
 import { Hud } from './ui/hud';
+import { Menu } from './ui/menu';
 import { Renderer } from './ui/renderer';
 
 const canvas = document.getElementById('map') as HTMLCanvasElement;
@@ -14,7 +15,10 @@ const orders = document.getElementById('orders') as HTMLDialogElement;
 const hint = document.getElementById('hint') as HTMLElement;
 
 const renderer = new Renderer(canvas);
-let engine = loadFromStorage() ?? GameEngine.create();
+const saved = loadFromStorage();
+let engine = saved ?? GameEngine.create();
+/** False while a fresh, untouched world is just a backdrop for the title screen. */
+let realGame = saved !== null;
 
 let toastTimer = 0;
 function toast(text: string): void {
@@ -32,11 +36,8 @@ const controller = new Controller(engine, renderer, canvas, {
     wire(loaded);
     toast('Game loaded');
   },
-  onNew: () => {
-    if (!confirm('Start a new world? Unsaved progress will be lost.')) return;
-    wire(GameEngine.create());
-    toast('A new expedition begins');
-  },
+  onNew: () => menu.open('new'),
+  onMenu: () => menu.open(),
   onHelp: () => (help.open ? help.close() : help.showModal()),
   onOrders: () => {
     if (orders.open) return orders.close();
@@ -46,6 +47,31 @@ const controller = new Controller(engine, renderer, canvas, {
   toast,
 });
 const hud = new Hud(controller);
+
+let pausedBeforeMenu = false;
+const menu = new Menu({
+  engine: () => controller.engine,
+  isRealGame: () => realGame,
+  // real games pause behind the menu; the title-screen world keeps running
+  onOpen: () => {
+    pausedBeforeMenu = controller.clock.paused;
+    if (realGame) controller.clock.paused = true;
+  },
+  onResume: () => {
+    realGame = true;
+    menu.wasPlaying = true;
+    controller.clock.paused = pausedBeforeMenu;
+    canvas.focus();
+  },
+  onNewGame: ({ params, dwarves }) => {
+    wire(GameEngine.create(params, dwarves));
+    saveToStorage(controller.engine);
+    pausedBeforeMenu = false;
+    toast('A new expedition begins');
+  },
+  onLoad: () => controller.hooks().onLoad(),
+  onHelp: () => controller.hooks().onHelp(),
+});
 
 function wire(next: GameEngine): void {
   engine = next;
@@ -89,8 +115,12 @@ document.getElementById('toolbar')!.addEventListener('click', (ev) => {
     case 'orders':
       controller.hooks().onOrders();
       break;
+    case 'menu':
+      menu.open();
+      break;
   }
 });
+document.querySelector('#topbar .brand')!.addEventListener('click', () => menu.open());
 document.getElementById('buildbar')!.addEventListener('click', (ev) => {
   const b = (ev.target as HTMLElement).closest<HTMLButtonElement>('button[data-build]');
   if (b) controller.setBuildKind(Number(b.dataset.build) as Building);
@@ -114,15 +144,9 @@ document.getElementById('speed')!.addEventListener('click', (ev) => {
 });
 document.getElementById('sidebar-toggle')!.addEventListener('click', () => document.body.classList.toggle('side-open'));
 
-window.addEventListener('beforeunload', () => saveToStorage(controller.engine));
-if (!hasSave() && !localStorage.getItem('fortress-seen-help')) {
-  try {
-    localStorage.setItem('fortress-seen-help', '1');
-  } catch {
-    /* storage blocked */
-  }
-  help.showModal();
-}
+// don't autosave the title-screen world unless the player actually started it
+window.addEventListener('beforeunload', () => realGame && saveToStorage(controller.engine));
+menu.open();
 
 let last = performance.now();
 let hudAt = 0;
