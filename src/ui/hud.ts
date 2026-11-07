@@ -4,7 +4,7 @@ import { WEATHER_NAMES } from '../world/weather';
 import { EntityType, type Entity } from '../entities/entity';
 import { JOB_LABELS, JobType, type Job } from '../jobs/job';
 import { checkJob } from '../jobs/recipes';
-import { SKILL_TYPES, UNHAPPY } from '../entities/components';
+import { SKILL_TYPES, STRESS_WARNING, UNHAPPY } from '../entities/components';
 import { SPEED_TPS } from '../core/clock';
 import { BUILDINGS, BUILD_MENU, Building, RECIPES, RESOURCE_GROUPS, canAfford, describeCost, type ToolKind } from '../game/content';
 import { wanted } from '../game/production';
@@ -70,6 +70,7 @@ export class Hud {
       b.title = `${SPEED_TPS[Number(b.dataset.speed) - 1]} ticks/s`;
     });
     $('speed').querySelector<HTMLButtonElement>('[data-act="pause"]')!.classList.toggle('on', clock.paused);
+    document.querySelector<HTMLButtonElement>('[data-act="alarm"]')!.classList.toggle('on', e.alarm);
     document.querySelectorAll<HTMLButtonElement>('#modes button').forEach((b) => b.classList.toggle('on', b.dataset.mode === this.ctl.mode));
     $('hint').textContent = this.ctl.mode ? MODE_HINTS[this.ctl.mode] : '';
     $('hint').classList.toggle('show', this.ctl.mode !== null);
@@ -126,8 +127,9 @@ export class Hud {
         const m = d.mental!;
         const job = d.job ? JOB_LABELS[d.job.type] : m.breakdown ? 'sulking' : 'idle';
         const sel = this.ctl.selected?.id === d.id ? ' sel' : '';
+        const stressed = !m.breakdown && m.stress >= STRESS_WARNING ? '<span class="stressed" title="Heading for a breakdown">stressed</span>' : '';
         const tools = d.tools.length ? `<span class="tools" title="Carrying">${d.tools.map((t) => TOOL_LABEL[t]).join(' ')}</span>` : '';
-        return `<li class="dwarf${sel}" data-id="${d.id}"><div class="row"><b>${esc(d.name)}</b>${tools}<span class="muted job">${job}</span></div>
+        return `<li class="dwarf${sel}" data-id="${d.id}"><div class="row"><b>${esc(d.name)}</b>${stressed}${tools}<span class="muted job">${job}</span></div>
           <div class="bars">${meter('Food', 100 - n.hunger, needWord(n.hunger, ['fed', 'hungry', 'starving']))}${meter('Drink', 100 - n.thirst, needWord(n.thirst, ['fine', 'thirsty', 'parched']))}${meter('Rest', 100 - n.fatigue, needWord(n.fatigue, ['rested', 'tired', 'exhausted']))}${meter('Health', (p.health / p.maxHealth) * 100, p.health < p.maxHealth ? 'wounded' : 'unhurt')}${meter('Mood', m.happiness, m.thought || 'content')}</div></li>`;
       })
       .join('');
@@ -207,7 +209,11 @@ export class Hud {
       n.thirst > 60 ? needWord(n.thirst, ['', 'thirsty', 'parched']) : '',
       n.fatigue > 60 ? needWord(n.fatigue, ['', 'tired', 'exhausted']) : '',
     ].filter(Boolean);
-    const mood = m.breakdown ? '<span class="bad">sulking (refuses to work)</span>' : m.happiness < UNHAPPY ? '<span class="bad">miserable (works slowly)</span>' : m.happiness > 70 ? 'happy (works faster)' : 'content';
+    const mood = m.breakdown
+      ? '<span class="bad">sulking (refuses to work)</span>'
+      : m.stress >= STRESS_WARNING
+        ? '<span class="bad">stressed (may break down soon)</span>'
+        : m.happiness < UNHAPPY ? '<span class="bad">miserable (works slowly)</span>' : m.happiness > 70 ? 'happy (works faster)' : 'content';
     const skills = SKILL_TYPES.filter((k) => d.skills!.level(k) > 0).map((k) => `${k} ${d.skills!.level(k)}`);
     return `<div class="detail"><b>${esc(d.name)}</b> is ${mood}${feelings.length ? `, ${feelings.join(', ')}` : ''}.
       ${m.thought ? `<br><span class="muted">Recently ${esc(m.thought)}.</span>` : ''}
@@ -250,7 +256,7 @@ export class Hud {
     this.lastLog = last;
     const important = e.logEntries.filter((l) => l.type !== 'WEATHER_CHANGED').slice(-40).reverse();
     $('log').innerHTML = important
-      .map((l) => `<li class="${l.type === 'DWARF_DIED' || l.type === 'INVASION_STARTED' || l.type === 'MOOD_BREAKDOWN' ? 'bad' : ''}"><span class="muted">d${Math.floor(l.tick / 600) + 1}</span> ${esc(l.text)}</li>`)
+      .map((l) => `<li class="${l.type === 'DWARF_DIED' || l.type === 'INVASION_STARTED' || l.type === 'MOOD_BREAKDOWN' || l.type === 'MOOD_WARNING' || l.type === 'ALARM' ? 'bad' : ''}"><span class="muted">d${Math.floor(l.tick / 600) + 1}</span> ${esc(l.text)}</li>`)
       .join('');
   }
 }

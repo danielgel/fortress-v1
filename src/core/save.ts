@@ -22,6 +22,7 @@ export function serialize(engine: GameEngine): string {
     embark: engine.embark,
     stock: engine.stock,
     orders: engine.orders,
+    alarm: engine.alarm,
     weather: engine.weather.current,
     dims: [w.width, w.height, w.depth],
     arrays: {
@@ -73,6 +74,7 @@ export function deserialize(text: string): GameEngine {
   engine.embark = d.embark;
   engine.stock = { ...defaultStock(), ...d.stock };
   engine.orders = d.orders ?? {};
+  engine.alarm = d.alarm ?? false;
   engine.weather.current = d.weather as WeatherType;
   engine.attachWorld(world);
   engine.logEntries.push(...d.log);

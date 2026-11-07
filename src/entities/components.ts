@@ -27,6 +27,8 @@ export class PhysicalComponent implements Component {
 
 /** Below this happiness dwarves work slowly, and stress builds up. */
 export const UNHAPPY = 25;
+/** Stress at which the player is warned that a dwarf is heading for a breakdown. */
+export const STRESS_WARNING = 50;
 /** Stress at which a dwarf has a breakdown. */
 export const BREAKDOWN_STRESS = 75;
 /** How long a breakdown lasts (half a day). */
@@ -37,6 +39,8 @@ export class MentalComponent implements Component {
   thought = '';
   /** Ticks left of a breakdown: the dwarf refuses work but still eats, drinks and sleeps. */
   breakdown = 0;
+  /** Has the player been warned about this bout of stress yet? */
+  warned = false;
   constructor(
     public happiness = 60,
     public stress = 0,
@@ -50,11 +54,16 @@ export class MentalComponent implements Component {
     this.happiness = clamp(this.happiness + (misery > 0 ? -misery / 4000 : (50 - this.happiness) * 0.0004));
     // stress builds from unmet needs and from staying unhappy, and eases off otherwise
     this.stress = clamp(this.stress + misery / 6000 + (unhappy ? 0.025 : misery > 0 ? 0 : -0.01));
+    if (!this.warned && this.stress >= STRESS_WARNING && this.breakdown === 0) {
+      this.warned = true;
+      ctx.log('MOOD_WARNING', `${owner.name} is getting stressed. Food, drink, rest and comforts like beds, meals and statues will help.`);
+    } else if (this.warned && this.stress < STRESS_WARNING - 15) this.warned = false;
     if (this.breakdown > 0) {
       if (--this.breakdown === 0) this.feel('calmed down after a sulk', 6);
     } else if (this.stress >= BREAKDOWN_STRESS) {
       this.breakdown = BREAKDOWN_TICKS;
       this.stress -= 40;
+      this.warned = false;
       this.thought = 'is sulking';
       ctx.log('MOOD_BREAKDOWN', `${owner.name} can't take any more and stops working for a while.`);
     }

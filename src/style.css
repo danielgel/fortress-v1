@@ -60,6 +60,7 @@ ul { list-style: none; margin: 0; padding: 0; }
 .dwarf.sel { border-color: #3b5bb0; }
 .dwarf .row { display: flex; gap: 6px; align-items: baseline; }
 .dwarf .row .job { margin-left: auto; white-space: nowrap; }
+.dwarf .stressed { font-size: 10px; color: var(--bad, #ff7a6a); margin-left: 4px; }
 .dwarf .tools { font-size: 10px; color: #c9a65a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .bars { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; margin-top: 4px; }
 .bars.legend { margin: 0 0 4px; padding: 0 7px; font-size: 9px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; cursor: help; }
@@ -91,6 +92,8 @@ button:hover { border-color: #4a4a60; }
 button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 button.on { background: var(--accent); color: #1a1405; border-color: var(--accent); }
 button.on kbd { color: #1a1405; }
+button.alarm.on { background: #c0392b; border-color: #c0392b; color: #fff; }
+button.alarm.on kbd { color: #fff; }
 kbd { font: inherit; color: var(--accent); }
 dialog kbd { background: var(--panel-2); border: 1px solid var(--line); border-radius: 3px; padding: 0 4px; }
 

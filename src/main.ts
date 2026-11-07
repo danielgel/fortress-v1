@@ -115,6 +115,10 @@ document.getElementById('toolbar')!.addEventListener('click', (ev) => {
     case 'orders':
       controller.hooks().onOrders();
       break;
+    case 'alarm':
+      controller.toggleAlarm();
+      hud.update();
+      break;
     case 'menu':
       menu.open();
       break;

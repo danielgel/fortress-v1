@@ -34,6 +34,7 @@ Cloudflare Pages also works: build command `npm run build`, output directory `di
 | `D` `V` `C` `G` `F` `H` | dig · stairs down · chop · gather · fish · hunt |
 | `B` `[` `]` · `R` | build (walls, furniture, workshops; brackets pick what) · remove |
 | `O` | work orders for workshops |
+| `A` | raid alarm: spear carriers fight, everyone else shelters underground |
 | `T` `X` | teleport · cancel |
 | Drag, or `Enter` twice | apply the tool to a rectangle |
 | `Space`, `1`–`4` | pause, speed |

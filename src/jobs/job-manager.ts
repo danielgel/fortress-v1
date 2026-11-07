@@ -92,11 +92,11 @@ export class JobManager {
     return !tool || dwarf.tools.includes(tool) || ctx.stock[tool] > 0;
   }
 
-  /** Give a queued job to an idle dwarf, nearest-first within priority. */
-  requestJob(ctx: GameEngine, dwarf: Entity): Job | null {
+  /** Give a queued job to an idle dwarf, nearest-first within priority. `accept` can rule some jobs out. */
+  requestJob(ctx: GameEngine, dwarf: Entity, accept?: (job: Job) => boolean): Job | null {
     const candidates: Job[] = [];
     for (const job of this.jobs.values()) {
-      if (job.worker || job.retryAt > ctx.tick) continue;
+      if (job.worker || job.retryAt > ctx.tick || (accept && !accept(job))) continue;
       const check = checkJob(ctx, job);
       if (check === 'obsolete') {
         this.drop(ctx, job);

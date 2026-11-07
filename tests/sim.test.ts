@@ -9,7 +9,7 @@ import { Feature, Flag, Material } from '../src/world/types';
 import { ClimateType, RegionClimate } from '../src/world/climate';
 import { TICKS_PER_DAY, DAYS_PER_SEASON, Season } from '../src/world/calendar';
 import { CAVE_CROP, SURFACE_CROP } from '../src/game/farming';
-import { BREAKDOWN_STRESS, BREAKDOWN_TICKS } from '../src/entities/components';
+import { BREAKDOWN_STRESS, BREAKDOWN_TICKS, STRESS_WARNING } from '../src/entities/components';
 import { Building, WALL } from '../src/game/content';
 import { addOrder } from '../src/game/production';
 import { NO_DOORS } from '../src/nav/astar';
@@ -558,6 +558,28 @@ describe('breakdowns', () => {
     expect(e.world.has(x + 2, y, 0, Flag.STAIRS_DOWN)).toBe(true);
   });
 
+  it('warns once when a dwarf gets stressed, and again after they recover', () => {
+    const e = GameEngine.create(small, 1);
+    const d = e.entities.dwarves[0];
+    const m = d.mental!;
+    d.needs!.hunger = d.needs!.thirst = d.needs!.fatigue = 0;
+    const warnings = () => e.logEntries.filter((l) => l.type === 'MOOD_WARNING').length;
+    m.stress = STRESS_WARNING - 0.01;
+    m.happiness = 10;
+    run(e, 20);
+    expect(warnings()).toBe(1);
+    expect(e.logEntries.filter((l) => l.type === 'MOOD_WARNING')[0].text).toContain(d.name);
+    run(e, 50);
+    expect(warnings()).toBe(1);
+    m.happiness = 60;
+    m.stress = 10;
+    run(e, 5);
+    m.happiness = 10;
+    m.stress = STRESS_WARNING;
+    run(e, 5);
+    expect(warnings()).toBe(2);
+  });
+
   it('unhappiness builds stress, contentment eases it', () => {
     const e = GameEngine.create(small, 1);
     const m = e.entities.dwarves[0].mental!;
@@ -621,5 +643,87 @@ describe('jeweler', () => {
     const copy = deserialize(serialize(e));
     expect(copy.world.buildingAt(e.embark.x + 2, e.embark.y, 0)).toBe(Building.ORNAMENT);
     expect(copy.stock.ornament).toBe(2);
+  });
+});
+
+/** Stairs down at the embark with a small room below. */
+function shelter(e: GameEngine) {
+  const w = e.world;
+  const { x, y } = e.embark;
+  w.setStairsDown(x, y, 0);
+  for (let dx = 1; dx <= 3; dx++) w.flags[w.idx(x + dx, y, 1)] |= Flag.OPEN;
+}
+
+describe('raid alarm', () => {
+  it('spear carriers fight, everyone else shelters underground, and it lifts afterwards', () => {
+    const e = GameEngine.create(small, 3);
+    clearing(e, 10);
+    shelter(e);
+    e.stock.spear = 0;
+    const [guard, ...civilians] = e.entities.dwarves;
+    guard.tools.push('spear');
+    guard.physical!.strength = 30;
+    const { x, y } = e.embark;
+    e.world.feature[e.world.idx(x - 3, y + 2, 0)] = Feature.TREE;
+    e.jobs.designate(e, JobType.CHOP, { x: x - 3, y, z: 0 });
+    e.jobs.designate(e, JobType.CHOP, { x: x - 3, y: y + 2, z: 0 });
+    for (const d of e.entities.dwarves) d.needs!.hunger = d.needs!.thirst = d.needs!.fatigue = 0;
+
+    const goblin = e.entities.create(EntityType.MONSTER, { x: x + 8, y: y + 8, z: 0 }, e.rng);
+    goblin.physical!.health = 10_000; // a long fight
+    e.setAlarm(true);
+    run(e, 150);
+    for (const c of civilians) expect(c.pos.z).toBeGreaterThan(0);
+    expect(e.jobs.ofType(JobType.CHOP).every((j) => !j.worker)).toBe(true);
+    expect(goblin.physical!.health).toBeLessThan(10_000); // the guard is on it
+    goblin.physical!.health = 20;
+    run(e, 300);
+    expect(goblin.alive).toBe(false);
+    expect(e.alarm).toBe(false);
+    expect(e.logEntries.at(-1)!.text).toContain('All clear');
+  });
+
+  it('a civilian grabs a spare spear instead of hiding', () => {
+    const e = GameEngine.create(small, 1);
+    clearing(e, 10);
+    shelter(e);
+    e.stock.spear = 1;
+    const d = e.entities.dwarves[0];
+    e.entities.create(EntityType.MONSTER, { x: e.embark.x + 8, y: e.embark.y, z: 0 }, e.rng);
+    e.setAlarm(true);
+    run(e, 30);
+    expect(d.tools).toContain('spear');
+    expect(d.pos.z).toBe(0);
+  });
+
+  it('without the alarm nothing changes: everyone nearby joins the fight', () => {
+    const e = GameEngine.create(small, 2);
+    clearing(e, 10);
+    shelter(e);
+    e.stock.spear = 0;
+    e.entities.create(EntityType.MONSTER, { x: e.embark.x + 6, y: e.embark.y, z: 0 }, e.rng);
+    run(e, 60);
+    for (const d of e.entities.dwarves) expect(d.pos.z).toBe(0);
+  });
+
+  it('warns when there are fewer spears than goblins', () => {
+    const e = GameEngine.create(small);
+    e.stock.spear = 1;
+    for (let i = 0; i < 2; i++) e.entities.create(EntityType.MONSTER, { x: 2, y: 2 + i, z: 0 }, e.rng);
+    e.setAlarm(true);
+    expect(e.logEntries.at(-1)!.text).toContain('Only 1 spear against 2 goblins');
+    e.setAlarm(false);
+    e.stock.spear = 2;
+    e.setAlarm(true);
+    expect(e.logEntries.at(-1)!.text).not.toContain('Only');
+  });
+
+  it('is saved with the game', () => {
+    const e = GameEngine.create(small);
+    e.setAlarm(true);
+    expect(deserialize(serialize(e)).alarm).toBe(true);
+    const old = JSON.parse(serialize(e));
+    delete old.alarm;
+    expect(deserialize(JSON.stringify(old)).alarm).toBe(false);
   });
 });

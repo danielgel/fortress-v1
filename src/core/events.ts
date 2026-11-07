@@ -10,7 +10,9 @@ export type EventType =
   | 'SEASON_CHANGED'
   | 'WEATHER_CHANGED'
   | 'JOB_COMPLETED'
-  | 'MOOD_BREAKDOWN';
+  | 'MOOD_BREAKDOWN'
+  | 'MOOD_WARNING'
+  | 'ALARM';
 
 export interface GameEvent {
   type: EventType;
