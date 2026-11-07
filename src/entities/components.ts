@@ -62,11 +62,11 @@ function nearStatue(ctx: GameEngine, p: Pos): boolean {
   return false;
 }
 
-export type SkillType = 'mining' | 'woodcutting' | 'foraging' | 'construction' | 'fishing' | 'hunting' | 'crafting' | 'cooking';
-export const SKILL_TYPES: SkillType[] = ['mining', 'woodcutting', 'foraging', 'construction', 'fishing', 'hunting', 'crafting', 'cooking'];
+export type SkillType = 'mining' | 'woodcutting' | 'foraging' | 'construction' | 'fishing' | 'hunting' | 'crafting' | 'cooking' | 'farming';
+export const SKILL_TYPES: SkillType[] = ['mining', 'woodcutting', 'foraging', 'construction', 'fishing', 'hunting', 'crafting', 'cooking', 'farming'];
 
 export class SkillComponent implements Component {
-  xp: Record<SkillType, number> = { mining: 0, woodcutting: 0, foraging: 0, construction: 0, fishing: 0, hunting: 0, crafting: 0, cooking: 0 };
+  xp: Record<SkillType, number> = { mining: 0, woodcutting: 0, foraging: 0, construction: 0, fishing: 0, hunting: 0, crafting: 0, cooking: 0, farming: 0 };
   level(skill: SkillType): number {
     return Math.floor(Math.sqrt(this.xp[skill] / 10));
   }

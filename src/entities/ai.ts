@@ -199,7 +199,8 @@ function wander(ctx: GameEngine, e: Entity, radius: number): void {
 
 /** Hungry colony: idle dwarves mark nearby shrubs for gathering on their own. */
 function autoForage(ctx: GameEngine, d: Entity): void {
-  if (ctx.jobs.pendingCount >= 4) return;
+  // only our own backlog counts: farm plots waiting for harvest must not stop foraging
+  if (ctx.jobs.ofType(JobType.GATHER).filter((j) => !j.worker).length >= 4) return;
   const z = d.pos.z;
   const w = ctx.world;
   const R = 22;

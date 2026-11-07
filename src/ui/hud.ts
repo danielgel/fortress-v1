@@ -8,6 +8,7 @@ import { SKILL_TYPES } from '../entities/components';
 import { SPEED_TPS } from '../core/clock';
 import { BUILDINGS, BUILD_MENU, Building, RECIPES, RESOURCE_GROUPS, canAfford, describeCost, type ToolKind } from '../game/content';
 import { wanted } from '../game/production';
+import { cropFor, stalled } from '../game/farming';
 import type { GameEngine } from '../game/engine';
 import type { Controller, Mode } from './controller';
 
@@ -165,7 +166,7 @@ export class Hud {
       const parts: string[] = [];
       if (f & Flag.STAIRS_DOWN) parts.push('stairs down');
       if (f & Flag.STAIRS_UP) parts.push('stairs up');
-      parts.push(z === 0 ? `${MATERIAL_NAMES[w.material[i] as Material]} floor` : 'floor');
+      parts.push(z === 0 || w.material[i] === Material.SOIL ? `${MATERIAL_NAMES[w.material[i] as Material]} floor` : 'floor');
       if (w.feature[i] !== Feature.NONE) parts.push(FEATURE_NAMES[w.feature[i]]);
       if (w.water[i]) parts.push(`water ${w.water[i]}/7`);
       if (w.magma[i]) parts.push(`<span class="bad">magma ${w.magma[i]}/7</span>`);
@@ -175,6 +176,12 @@ export class Hud {
     if (b) {
       const info = BUILDINGS[b];
       lines.push(`<b>${info.name}</b>${info.workshop ? ' workshop' : ''} <span class="muted">— ${esc(info.desc)}</span>`);
+      if (b === Building.FARM) {
+        const crop = cropFor(z);
+        const why = stalled(e, i);
+        const state = w.crop[i] >= crop.growDays ? 'ripe' : why ? `<span class="bad">not growing (${why})</span>` : 'growing';
+        lines.push(`${crop.name}: ${state} <span class="muted">— day ${w.crop[i]} of ${crop.growDays}</span>`);
+      }
       if (info.workshop) {
         const recipes = RECIPES.filter((r) => r.workshop === b).map((r) => r.name.toLowerCase());
         lines.push(`<span class="muted">Makes ${recipes.join(', ')}. Press <kbd>O</kbd> for orders.</span>`);

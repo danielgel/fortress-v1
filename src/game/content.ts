@@ -134,6 +134,8 @@ export enum Building {
   FORGE,
   KITCHEN,
   BREWERY,
+  // saved as numbers: only ever append
+  FARM,
 }
 
 /** BUILD jobs carry a Building in `arg`; NONE means "raise a wall". */
@@ -163,6 +165,7 @@ export const BUILDINGS: Record<Building, BuildingInfo> = {
   [Building.FORGE]: { name: 'Forge', glyph: 'F', fg: '#ff9a5a', bg: '#40201a', cost: { stone: 4, metal: 1 }, workshop: true, walkable: true, desc: 'Metal → picks, axes, spears' },
   [Building.KITCHEN]: { name: 'Kitchen', glyph: 'K', fg: '#ffe08a', bg: '#3c3418', cost: { wood: 2, stone: 2 }, workshop: true, walkable: true, desc: 'Raw food → meals' },
   [Building.BREWERY]: { name: 'Brewery', glyph: 'B', fg: '#c8f08a', bg: '#2a3a18', cost: { wood: 3 }, workshop: true, walkable: true, desc: 'Plants → booze' },
+  [Building.FARM]: { name: 'Farm plot', glyph: '≡', fg: '#b8d070', bg: '#3a2a16', cost: {}, workshop: false, walkable: true, desc: 'Grows crops on grass, soil or mud; plots below ground grow all year' },
 };
 
 /** Order of the build menu. */
@@ -173,6 +176,7 @@ export const BUILD_MENU: Building[] = [
   Building.TABLE,
   Building.CHAIR,
   Building.STATUE,
+  Building.FARM,
   Building.CARPENTER,
   Building.MASON,
   Building.SMELTER,

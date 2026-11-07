@@ -14,6 +14,7 @@ import { Feature, Flag, Material, type Pos } from '../world/types';
 import { WEATHER_NAMES, WeatherSystem } from '../world/weather';
 import type { World } from '../world/world';
 import { Building, defaultStock, type Stock } from './content';
+import { growCrops } from './farming';
 import { processOrders, type Orders } from './production';
 
 export type { Stock } from './content';
@@ -171,11 +172,12 @@ export class GameEngine {
         const i = w.idx(x, y, 0);
         const ground = w.material[i];
         if (ground === Material.SAND || ground === Material.SNOW || ground === Material.STONE) continue;
-        if (w.feature[i] === Feature.NONE && w.water[i] === 0 && this.rng.chance(0.2 * factor)) w.feature[i] = Feature.SHRUB;
+        if (w.feature[i] === Feature.NONE && w.building[i] === Building.NONE && w.water[i] === 0 && this.rng.chance(0.2 * factor)) w.feature[i] = Feature.SHRUB;
       }
     }
 
     this.regrowMushrooms();
+    growCrops(this);
     const food = this.stock.food + this.stock.meals;
     if (food < 8) this.log('RESOURCE_DEPLETED', `Food is running low (${food} left)!`);
     const day = this.calendar.day;

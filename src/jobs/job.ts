@@ -20,6 +20,7 @@ export enum JobType {
   HUNT,
   CRAFT,
   REMOVE,
+  HARVEST,
 }
 
 export const JOB_LABELS: Record<JobType, string> = {
@@ -38,6 +39,7 @@ export const JOB_LABELS: Record<JobType, string> = {
   [JobType.HUNT]: 'hunt',
   [JobType.CRAFT]: 'craft',
   [JobType.REMOVE]: 'remove building',
+  [JobType.HARVEST]: 'harvest',
 };
 
 /** The tool a dwarf must carry to do this kind of work. */

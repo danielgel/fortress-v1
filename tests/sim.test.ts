@@ -5,7 +5,10 @@ import { GameEngine } from '../src/game/engine';
 import { JobType } from '../src/jobs/job';
 import { findPathTo } from '../src/nav/astar';
 import { EntityType } from '../src/entities/entity';
-import { Feature, Flag } from '../src/world/types';
+import { Feature, Flag, Material } from '../src/world/types';
+import { ClimateType, RegionClimate } from '../src/world/climate';
+import { TICKS_PER_DAY, DAYS_PER_SEASON, Season } from '../src/world/calendar';
+import { CAVE_CROP, SURFACE_CROP } from '../src/game/farming';
 import { Building, WALL } from '../src/game/content';
 import { addOrder } from '../src/game/production';
 import { NO_DOORS } from '../src/nav/astar';
@@ -385,5 +388,141 @@ describe('save compatibility', () => {
     expect(copy.stock.pick).toBeGreaterThan(0);
     expect(copy.stock.meals).toBe(0);
     run(copy, 100);
+  });
+});
+
+/** Pin the region to a temperate climate and jump to the morning of a season's first day. */
+function setSeason(e: GameEngine, season: Season) {
+  e.climate = new RegionClimate(ClimateType.TEMPERATE, 12, 11, 0.5);
+  e.tick = e.calendar.tick = (season * DAYS_PER_SEASON + 2) * TICKS_PER_DAY + 200;
+  e.climate.update(e.calendar);
+}
+
+/** A grass farm plot two tiles east of the embark. Returns its tile index. */
+function surfacePlot(e: GameEngine): number {
+  const w = e.world;
+  const { x, y } = e.embark;
+  const i = w.idx(x + 2, y, 0);
+  w.material[i] = Material.GRASS;
+  w.setBuilding(x + 2, y, 0, Building.FARM);
+  return i;
+}
+
+describe('farming', () => {
+  it('plots need grass, soil or mud and are tilled by a dwarf', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    const w = e.world;
+    const { x, y } = e.embark;
+    w.material[w.idx(x + 2, y, 0)] = Material.SAND;
+    expect(e.jobs.designate(e, JobType.BUILD, { x: x + 2, y, z: 0 }, 1, Building.FARM)).toBe('needs grass, soil or mud');
+    w.material[w.idx(x + 3, y, 0)] = Material.GRASS;
+    expect(typeof e.jobs.designate(e, JobType.BUILD, { x: x + 3, y, z: 0 }, 1, Building.FARM)).not.toBe('string');
+    run(e, 300);
+    expect(w.buildingAt(x + 3, y, 0)).toBe(Building.FARM);
+  });
+
+  it('surface crops do not grow in winter', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    setSeason(e, Season.WINTER);
+    const i = surfacePlot(e);
+    const plants = e.stock.plants;
+    run(e, TICKS_PER_DAY * (SURFACE_CROP.growDays + 1));
+    expect(e.world.crop[i]).toBe(0);
+    expect(e.jobs.ofType(JobType.HARVEST)).toHaveLength(0);
+    expect(e.stock.plants).toBe(plants);
+  });
+
+  it('surface crops ripen and get harvested in summer', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    setSeason(e, Season.SUMMER);
+    const i = surfacePlot(e);
+    const plants = e.stock.plants;
+    run(e, TICKS_PER_DAY * (SURFACE_CROP.growDays + 1));
+    expect(e.stock.plants).toBe(plants + SURFACE_CROP.yield.plants!);
+    expect(e.world.crop[i]).toBeLessThan(SURFACE_CROP.growDays);
+    expect(e.entities.dwarves.some((d) => d.skills!.xp.farming > 0)).toBe(true);
+  });
+
+  it('underground plots grow and get harvested even in winter', () => {
+    const e = GameEngine.create(small);
+    setSeason(e, Season.WINTER);
+    const w = e.world;
+    const { x, y } = e.embark;
+    w.setStairsDown(x, y, 0);
+    for (const dx of [1, 2]) {
+      const i = w.idx(x + dx, y, 1);
+      w.flags[i] |= Flag.OPEN;
+      w.material[i] = Material.SOIL;
+    }
+    w.setBuilding(x + 2, y, 1, Building.FARM);
+    w.crop[w.idx(x + 2, y, 1)] = CAVE_CROP.growDays - 1;
+    const plants = e.stock.plants;
+    run(e, TICKS_PER_DAY * 2);
+    expect(e.stock.plants).toBe(plants + CAVE_CROP.yield.plants!);
+  });
+
+  it('a backlog of unreachable harvests does not stop hungry dwarves foraging', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    const w = e.world;
+    const { x, y } = e.embark;
+    // sealed-off ripe plots below ground: their harvest jobs can never be taken
+    for (let dx = 0; dx < 6; dx++) {
+      const i = w.idx(x + dx, y, 1);
+      w.flags[i] |= Flag.OPEN;
+      w.material[i] = Material.SOIL;
+      w.setBuilding(x + dx, y, 1, Building.FARM);
+      w.crop[i] = CAVE_CROP.growDays;
+      e.jobs.designate(e, JobType.HARVEST, { x: x + dx, y, z: 1 });
+    }
+    w.feature[w.idx(x + 3, y + 3, 0)] = Feature.SHRUB;
+    e.stock.food = 5;
+    run(e, 300);
+    expect(w.feature[w.idx(x + 3, y + 3, 0)]).toBe(Feature.NONE);
+  });
+
+  it('removing a ripe plot takes over its harvest job', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    const i = surfacePlot(e);
+    e.world.crop[i] = SURFACE_CROP.growDays;
+    const p = e.world.pos(i);
+    expect(typeof e.jobs.designate(e, JobType.HARVEST, p)).not.toBe('string');
+    expect(typeof e.jobs.designate(e, JobType.REMOVE, p)).not.toBe('string');
+    expect(e.jobs.designationAt(p.x, p.y, p.z, e)!.type).toBe(JobType.REMOVE);
+  });
+
+  it('shrubs never sprout on built tiles', () => {
+    const e = GameEngine.create(small);
+    setSeason(e, Season.SUMMER);
+    const w = e.world;
+    for (let y = 0; y < w.height; y++)
+      for (let x = 0; x < w.width; x++) {
+        const i = w.idx(x, y, 0);
+        if (w.feature[i] === Feature.NONE && !w.water[i] && w.material[i] === Material.GRASS) w.setBuilding(x, y, 0, Building.FARM);
+      }
+    run(e, TICKS_PER_DAY * 3);
+    for (const i of w.buildingTiles) expect(w.feature[i]).toBe(Feature.NONE);
+  });
+
+  it('saves crop growth and still loads a version 3 save', () => {
+    const e = GameEngine.create(small);
+    const i = surfacePlot(e);
+    e.world.crop[i] = 4;
+    const copy = deserialize(serialize(e));
+    expect(copy.world.buildingAt(e.embark.x + 2, e.embark.y, 0)).toBe(Building.FARM);
+    expect(copy.world.crop[i]).toBe(4);
+
+    const old = JSON.parse(serialize(GameEngine.create(small)));
+    old.version = 3;
+    delete old.arrays.crop;
+    for (const ent of old.entities) if (ent.skills) delete ent.skills.farming;
+    const loaded = deserialize(JSON.stringify(old));
+    expect(loaded.world.crop.every((v) => v === 0)).toBe(true);
+    expect(loaded.entities.dwarves[0].skills!.xp.farming).toBe(0);
+    run(loaded, 100);
   });
 });

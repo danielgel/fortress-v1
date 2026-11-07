@@ -23,8 +23,8 @@ export class JobManager {
     if (err) return err;
     const key = ctx.world.idx(pos.x, pos.y, pos.z);
     const existing = this.byTile.get(key);
-    // tearing down a workshop takes over from whatever it was making
-    if (existing && type === JobType.REMOVE && existing.type === JobType.CRAFT) this.drop(ctx, existing);
+    // tearing down a workshop or field takes over from whatever was happening there
+    if (existing && type === JobType.REMOVE && (existing.type === JobType.CRAFT || existing.type === JobType.HARVEST)) this.drop(ctx, existing);
     else if (existing) return 'already designated';
     const job = this.newJob(type, pos, priority, false, arg);
     this.jobs.set(job.id, job);
