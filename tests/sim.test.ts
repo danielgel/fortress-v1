@@ -580,3 +580,46 @@ describe('breakdowns', () => {
     expect(Math.max(...e.entities.dwarves.map((d) => d.mental!.stress))).toBeLessThan(BREAKDOWN_STRESS / 2);
   });
 });
+
+describe('jeweler', () => {
+  it('cuts gems into ornaments that can be placed', () => {
+    const e = GameEngine.create(small);
+    clearing(e);
+    const { x, y } = e.embark;
+    e.world.setBuilding(x + 2, y, 0, Building.JEWELER);
+    e.stock.gems = 1;
+    addOrder(e, 'ornament', 2);
+    run(e, 400);
+    expect(e.stock.gems).toBe(0);
+    expect(e.stock.ornament).toBe(1);
+    expect(e.orders.ornament.queued).toBe(1); // waits for another gem
+
+    e.jobs.designate(e, JobType.BUILD, { x: x - 3, y, z: 0 }, 1, Building.ORNAMENT);
+    run(e, 300);
+    expect(e.world.buildingAt(x - 3, y, 0)).toBe(Building.ORNAMENT);
+    expect(e.stock.ornament).toBe(0);
+  });
+
+  it('dwarves admire an ornament more than a statue', () => {
+    const e = GameEngine.create(small, 1);
+    clearing(e);
+    const d = e.entities.dwarves[0];
+    const { x, y } = d.pos;
+    e.world.setBuilding(x + 2, y + 1, 0, Building.STATUE);
+    e.world.setBuilding(x - 2, y - 1, 0, Building.ORNAMENT);
+    d.needs!.hunger = d.needs!.thirst = d.needs!.fatigue = 0;
+    d.mental!.happiness = 50;
+    run(e, 60);
+    expect(d.mental!.thought).toBe('admired a gem ornament');
+    expect(d.mental!.happiness).toBeGreaterThan(51);
+  });
+
+  it('saves ornaments in stock and on the map', () => {
+    const e = GameEngine.create(small);
+    e.world.setBuilding(e.embark.x + 2, e.embark.y, 0, Building.ORNAMENT);
+    e.stock.ornament = 2;
+    const copy = deserialize(serialize(e));
+    expect(copy.world.buildingAt(e.embark.x + 2, e.embark.y, 0)).toBe(Building.ORNAMENT);
+    expect(copy.stock.ornament).toBe(2);
+  });
+});

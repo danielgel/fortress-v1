@@ -19,7 +19,8 @@ export type Resource =
   | 'table'
   | 'chair'
   | 'door'
-  | 'statue';
+  | 'statue'
+  | 'ornament';
 
 export type Stock = Record<Resource, number>;
 export type Cost = Partial<Record<Resource, number>>;
@@ -61,6 +62,7 @@ export const RESOURCE_GROUPS: { title: string; items: { key: Resource; label: st
       { key: 'chair', label: 'Chairs' },
       { key: 'door', label: 'Doors' },
       { key: 'statue', label: 'Statues' },
+      { key: 'ornament', label: 'Ornaments' },
     ],
   },
 ];
@@ -90,6 +92,7 @@ export function defaultStock(): Stock {
     chair: 0,
     door: 0,
     statue: 0,
+    ornament: 0,
   };
 }
 
@@ -136,6 +139,8 @@ export enum Building {
   BREWERY,
   // saved as numbers: only ever append
   FARM,
+  JEWELER,
+  ORNAMENT,
 }
 
 /** BUILD jobs carry a Building in `arg`; NONE means "raise a wall". */
@@ -166,6 +171,8 @@ export const BUILDINGS: Record<Building, BuildingInfo> = {
   [Building.KITCHEN]: { name: 'Kitchen', glyph: 'K', fg: '#ffe08a', bg: '#3c3418', cost: { wood: 2, stone: 2 }, workshop: true, walkable: true, desc: 'Raw food → meals' },
   [Building.BREWERY]: { name: 'Brewery', glyph: 'B', fg: '#c8f08a', bg: '#2a3a18', cost: { wood: 3 }, workshop: true, walkable: true, desc: 'Plants → booze' },
   [Building.FARM]: { name: 'Farm plot', glyph: '≡', fg: '#b8d070', bg: '#3a2a16', cost: {}, workshop: false, walkable: true, desc: 'Grows crops on grass, soil or mud; plots below ground grow all year' },
+  [Building.JEWELER]: { name: 'Jeweler', glyph: 'J', fg: '#f0b0ff', bg: '#3a1a44', cost: { stone: 2, wood: 1 }, workshop: true, walkable: true, desc: 'Gems → ornaments' },
+  [Building.ORNAMENT]: { name: 'Ornament', glyph: '☼', fg: '#e070ff', cost: { ornament: 1 }, workshop: false, walkable: false, desc: 'A gem ornament; dwarves nearby admire it even more than a statue' },
 };
 
 /** Order of the build menu. */
@@ -176,6 +183,7 @@ export const BUILD_MENU: Building[] = [
   Building.TABLE,
   Building.CHAIR,
   Building.STATUE,
+  Building.ORNAMENT,
   Building.FARM,
   Building.CARPENTER,
   Building.MASON,
@@ -183,6 +191,7 @@ export const BUILD_MENU: Building[] = [
   Building.FORGE,
   Building.KITCHEN,
   Building.BREWERY,
+  Building.JEWELER,
 ];
 
 export interface Recipe {
@@ -213,6 +222,7 @@ export const RECIPES: Recipe[] = [
   { id: 'spear', name: 'Spear', workshop: Building.FORGE, input: { metal: 1 }, output: { spear: 1 }, ticks: 80, skill: 'crafting', keep: 1 },
   { id: 'meal', name: 'Meals', workshop: Building.KITCHEN, input: { food: 2 }, output: { meals: 3 }, ticks: 40, skill: 'cooking', keep: 15 },
   { id: 'booze', name: 'Booze', workshop: Building.BREWERY, input: { plants: 2 }, output: { booze: 4 }, ticks: 50, skill: 'cooking', keep: 15 },
+  { id: 'ornament', name: 'Gem ornament', workshop: Building.JEWELER, input: { gems: 1 }, output: { ornament: 1 }, ticks: 90, skill: 'crafting', keep: 1 },
 ];
 
 export const RECIPE_BY_ID = new Map(RECIPES.map((r, i) => [r.id, i]));

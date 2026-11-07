@@ -58,7 +58,8 @@ export class MentalComponent implements Component {
       this.thought = 'is sulking';
       ctx.log('MOOD_BREAKDOWN', `${owner.name} can't take any more and stops working for a while.`);
     }
-    if ((ctx.tick + owner.id) % 60 === 0 && nearStatue(ctx, owner.pos)) this.feel('admired a statue', 1.5);
+    const sight = (ctx.tick + owner.id) % 60 === 0 ? admire(ctx, owner.pos) : null;
+    if (sight) this.feel(...sight);
   }
   /** Something nice (or not) happened. */
   feel(thought: string, delta: number): void {
@@ -71,14 +72,23 @@ export class MentalComponent implements Component {
   }
 }
 
-function nearStatue(ctx: GameEngine, p: Pos): boolean {
+/** Decorations dwarves admire from up to 4 tiles away, and how much each lifts the mood. */
+const DECOR: Partial<Record<Building, [thought: string, delta: number]>> = {
+  [Building.STATUE]: ['admired a statue', 1.5],
+  [Building.ORNAMENT]: ['admired a gem ornament', 2.5],
+};
+
+/** The finest decoration in sight of `p`, if any. */
+function admire(ctx: GameEngine, p: Pos): [string, number] | null {
   const w = ctx.world;
+  let best: [string, number] | null = null;
   for (const i of w.buildingTiles) {
-    if (w.building[i] !== Building.STATUE) continue;
+    const d = DECOR[w.building[i] as Building];
+    if (!d || (best && best[1] >= d[1])) continue;
     const s = w.pos(i);
-    if (s.z === p.z && Math.abs(s.x - p.x) <= 4 && Math.abs(s.y - p.y) <= 4) return true;
+    if (s.z === p.z && Math.abs(s.x - p.x) <= 4 && Math.abs(s.y - p.y) <= 4) best = d;
   }
-  return false;
+  return best;
 }
 
 export type SkillType = 'mining' | 'woodcutting' | 'foraging' | 'construction' | 'fishing' | 'hunting' | 'crafting' | 'cooking' | 'farming';
