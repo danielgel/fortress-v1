@@ -4,6 +4,7 @@ import type { GameEngine } from '../game/engine';
 import { BUILDINGS, Building, RECIPES, WALL, canAfford, give, pay } from '../game/content';
 import { JobType, type Job, type JobStep } from './job';
 import { GotoStep, HuntStep, TeleportStep, WorkStep } from './steps';
+import { cropFor, farmable, isRipe } from '../game/farming';
 
 export type JobCheck = 'ok' | 'obsolete' | 'blocked';
 
@@ -50,7 +51,7 @@ export function checkJob(ctx: GameEngine, job: Pick<Job, 'type' | 'pos' | 'arg'>
     case JobType.GATHER:
       return w.feature[i] === Feature.SHRUB || w.feature[i] === Feature.MUSHROOM ? 'ok' : 'obsolete';
     case JobType.BUILD:
-      if (!freeFloor(ctx, i)) return 'obsolete';
+      if (!freeFloor(ctx, i) || (job.arg === Building.FARM && !farmable(w, i))) return 'obsolete';
       return canAfford(ctx.stock, BUILDINGS[job.arg as Building].cost) ? 'ok' : 'blocked';
     case JobType.FISH:
       if (w.water[i] === 0) return 'obsolete';
@@ -66,6 +67,8 @@ export function checkJob(ctx: GameEngine, job: Pick<Job, 'type' | 'pos' | 'arg'>
     }
     case JobType.REMOVE:
       return w.building[i] ? 'ok' : 'obsolete';
+    case JobType.HARVEST:
+      return isRipe(w, i) ? 'ok' : 'obsolete';
     case JobType.TELEPORT:
       return w.walkable(x, y, z) ? 'ok' : 'obsolete';
     case JobType.EAT:
@@ -89,6 +92,7 @@ export function designationError(ctx: GameEngine, type: JobType, pos: Pos, arg =
     return null;
   }
   if (type === JobType.BUILD && !freeFloor(ctx, i)) return w.building[i] ? 'something is built there' : 'needs clear, dry floor';
+  if (type === JobType.BUILD && arg === Building.FARM && !farmable(w, i)) return 'needs grass, soil or mud';
   if (type === JobType.FISH) {
     if (w.water[i] === 0) return 'not water';
     if (!w.neighbours4(pos.x, pos.y).some(([nx, ny]) => w.walkable(nx, ny, pos.z))) return 'too far from shore';
@@ -194,6 +198,19 @@ export function buildSteps(job: Job): JobStep[] {
             const kind = c.world.buildingAt(t.x, t.y, t.z);
             give(c.stock, BUILDINGS[kind].cost);
             c.world.setBuilding(t.x, t.y, t.z, Building.NONE);
+          },
+        }),
+      ];
+    case JobType.HARVEST:
+      return [
+        new GotoStep(near(t, true), t),
+        new WorkStep({
+          ticks: 20,
+          skill: 'farming',
+          valid: (c, j) => checkJob(c, j) === 'ok',
+          effect: (c) => {
+            give(c.stock, cropFor(t.z).yield);
+            c.world.crop[c.world.idx(t.x, t.y, t.z)] = 0; // replanted straight away
           },
         }),
       ];

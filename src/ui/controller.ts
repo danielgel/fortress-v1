@@ -166,6 +166,18 @@ export class Controller {
     } else this._hooks.toast(`Designated ${n} tile${n > 1 ? 's' : ''}`);
   }
 
+  toggleAlarm(): void {
+    this.engine.setAlarm(!this.engine.alarm);
+    const short = this.engine.alarm && this.engine.spearShortfall();
+    this._hooks.toast(
+      !this.engine.alarm
+        ? 'Alarm called off'
+        : short
+          ? `Alarm raised, but only ${short.spears} spear${short.spears === 1 ? '' : 's'} for ${short.goblins} goblins`
+          : 'Alarm raised: spear carriers fight, everyone else shelters underground',
+    );
+  }
+
   private teleportTo(p: Pos): number {
     return typeof this.engine.jobs.designate(this.engine, JobType.TELEPORT, p, 5) === 'string' ? 0 : 1;
   }
@@ -244,6 +256,7 @@ export class Controller {
         else if (k === 'l') this._hooks.onLoad();
         else if (k === 'n') this._hooks.onNew();
         else if (k === 'o') this._hooks.onOrders();
+        else if (k === 'a') this.toggleAlarm();
         else handled = false;
       }
       if (handled) ev.preventDefault();

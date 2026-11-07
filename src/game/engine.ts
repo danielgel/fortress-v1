@@ -14,6 +14,7 @@ import { Feature, Flag, Material, type Pos } from '../world/types';
 import { WEATHER_NAMES, WeatherSystem } from '../world/weather';
 import type { World } from '../world/world';
 import { Building, defaultStock, type Stock } from './content';
+import { growCrops } from './farming';
 import { processOrders, type Orders } from './production';
 
 export type { Stock } from './content';
@@ -36,6 +37,8 @@ export class GameEngine {
   orders: Orders = {};
   readonly logEntries: LogEntry[] = [];
   embark = { x: 0, y: 0 };
+  /** Raid alarm: dwarves with spears hunt the invaders, everyone else shelters underground. */
+  alarm = false;
   climate!: RegionClimate;
   fluids!: FluidSystem;
   rng: Rng;
@@ -124,7 +127,13 @@ export class GameEngine {
     victim.tools = [];
     this.entities.remove(victim);
     if (victim.type === EntityType.DWARF) this.log('DWARF_DIED', `${victim.name} has died${killer ? ` (killed by a ${killer.name})` : ''}.`);
-    else if (victim.type === EntityType.MONSTER) this.log('CREATURE_SPAWNED', `A ${victim.name} was slain.`);
+    else if (victim.type === EntityType.MONSTER) {
+      this.log('CREATURE_SPAWNED', `A ${victim.name} was slain.`);
+      if (this.alarm && this.entities.ofType(EntityType.MONSTER).length === 0) {
+        this.alarm = false;
+        this.log('ALARM', 'All clear: the invaders are gone and everyone goes back to work.');
+      }
+    }
   }
 
   /** Advance the simulation by one tick. */
@@ -171,11 +180,12 @@ export class GameEngine {
         const i = w.idx(x, y, 0);
         const ground = w.material[i];
         if (ground === Material.SAND || ground === Material.SNOW || ground === Material.STONE) continue;
-        if (w.feature[i] === Feature.NONE && w.water[i] === 0 && this.rng.chance(0.2 * factor)) w.feature[i] = Feature.SHRUB;
+        if (w.feature[i] === Feature.NONE && w.building[i] === Building.NONE && w.water[i] === 0 && this.rng.chance(0.2 * factor)) w.feature[i] = Feature.SHRUB;
       }
     }
 
     this.regrowMushrooms();
+    growCrops(this);
     const food = this.stock.food + this.stock.meals;
     if (food < 8) this.log('RESOURCE_DEPLETED', `Food is running low (${food} left)!`);
     const day = this.calendar.day;
@@ -211,7 +221,29 @@ export class GameEngine {
     const edgeY = 2 + this.rng.int(this.world.height - 4);
     let made = 0;
     for (let i = 0; i < n; i++) if (this.spawnNear(EntityType.MONSTER, { x: edgeX, y: edgeY }, 6)) made++;
-    if (made) this.log('INVASION_STARTED', `Goblins! ${made} invader${made > 1 ? 's approach' : ' approaches'} from the ${edgeX < 10 ? 'west' : 'east'}.`);
+    if (made) {
+      const hint = this.alarm
+        ? ''
+        : this.spearShortfall()
+          ? ' With too few spears to go round, everyone pitching in may be safer than the alarm (A).'
+          : ' Sound the alarm (A) to send spear carriers out and everyone else underground.';
+      this.log('INVASION_STARTED', `Goblins! ${made} invader${made > 1 ? 's approach' : ' approaches'} from the ${edgeX < 10 ? 'west' : 'east'}.${hint}`);
+    }
+  }
+
+  setAlarm(on: boolean): void {
+    if (this.alarm === on) return;
+    this.alarm = on;
+    if (!on) return this.log('ALARM', 'The alarm is called off.');
+    const short = this.spearShortfall();
+    this.log('ALARM', `The alarm sounds! Spear carriers go to fight; everyone else heads underground.${short ? ` Only ${short.spears} spear${short.spears === 1 ? '' : 's'} against ${short.goblins} goblins: forge more at a forge.` : ''}`);
+  }
+
+  /** Fewer spears (carried or in stock) than invaders on the map? */
+  spearShortfall(): { spears: number; goblins: number } | null {
+    const goblins = this.entities.ofType(EntityType.MONSTER).length;
+    const spears = this.stock.spear + this.entities.dwarves.filter((d) => d.tools.includes('spear')).length;
+    return goblins > spears ? { spears, goblins } : null;
   }
 
   /** Designate every tile in a rectangle on one z-level. Returns how many were accepted. */

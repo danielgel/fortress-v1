@@ -25,9 +25,22 @@ export class PhysicalComponent implements Component {
   }
 }
 
+/** Below this happiness dwarves work slowly, and stress builds up. */
+export const UNHAPPY = 25;
+/** Stress at which the player is warned that a dwarf is heading for a breakdown. */
+export const STRESS_WARNING = 50;
+/** Stress at which a dwarf has a breakdown. */
+export const BREAKDOWN_STRESS = 75;
+/** How long a breakdown lasts (half a day). */
+export const BREAKDOWN_TICKS = 300;
+
 export class MentalComponent implements Component {
   /** Most recent thing that changed this dwarf's mood. */
   thought = '';
+  /** Ticks left of a breakdown: the dwarf refuses work but still eats, drinks and sleeps. */
+  breakdown = 0;
+  /** Has the player been warned about this bout of stress yet? */
+  warned = false;
   constructor(
     public happiness = 60,
     public stress = 0,
@@ -37,9 +50,25 @@ export class MentalComponent implements Component {
     if (!n) return;
     // unmet needs sour the mood; otherwise it drifts back towards content (50)
     const misery = Math.max(0, n.hunger - 60) + Math.max(0, n.thirst - 60) + Math.max(0, n.fatigue - 70);
+    const unhappy = this.happiness < UNHAPPY;
     this.happiness = clamp(this.happiness + (misery > 0 ? -misery / 4000 : (50 - this.happiness) * 0.0004));
-    this.stress = clamp(this.stress + (misery > 0 ? misery / 6000 : -0.01));
-    if ((ctx.tick + owner.id) % 60 === 0 && nearStatue(ctx, owner.pos)) this.feel('admired a statue', 1.5);
+    // stress builds from unmet needs and from staying unhappy, and eases off otherwise
+    this.stress = clamp(this.stress + misery / 6000 + (unhappy ? 0.025 : misery > 0 ? 0 : -0.01));
+    if (!this.warned && this.stress >= STRESS_WARNING && this.breakdown === 0) {
+      this.warned = true;
+      ctx.log('MOOD_WARNING', `${owner.name} is getting stressed. Food, drink, rest and comforts like beds, meals and statues will help.`);
+    } else if (this.warned && this.stress < STRESS_WARNING - 15) this.warned = false;
+    if (this.breakdown > 0) {
+      if (--this.breakdown === 0) this.feel('calmed down after a sulk', 6);
+    } else if (this.stress >= BREAKDOWN_STRESS) {
+      this.breakdown = BREAKDOWN_TICKS;
+      this.stress -= 40;
+      this.warned = false;
+      this.thought = 'is sulking';
+      ctx.log('MOOD_BREAKDOWN', `${owner.name} can't take any more and stops working for a while.`);
+    }
+    const sight = (ctx.tick + owner.id) % 60 === 0 ? admire(ctx, owner.pos) : null;
+    if (sight) this.feel(...sight);
   }
   /** Something nice (or not) happened. */
   feel(thought: string, delta: number): void {
@@ -48,25 +77,34 @@ export class MentalComponent implements Component {
   }
   /** Work-time multiplier: miserable dwarves dawdle, happy ones hurry. */
   get workFactor(): number {
-    return this.happiness < 25 ? 1.4 : this.happiness > 70 ? 0.85 : 1;
+    return this.happiness < UNHAPPY ? 1.4 : this.happiness > 70 ? 0.85 : 1;
   }
 }
 
-function nearStatue(ctx: GameEngine, p: Pos): boolean {
+/** Decorations dwarves admire from up to 4 tiles away, and how much each lifts the mood. */
+const DECOR: Partial<Record<Building, [thought: string, delta: number]>> = {
+  [Building.STATUE]: ['admired a statue', 1.5],
+  [Building.ORNAMENT]: ['admired a gem ornament', 2.5],
+};
+
+/** The finest decoration in sight of `p`, if any. */
+function admire(ctx: GameEngine, p: Pos): [string, number] | null {
   const w = ctx.world;
+  let best: [string, number] | null = null;
   for (const i of w.buildingTiles) {
-    if (w.building[i] !== Building.STATUE) continue;
+    const d = DECOR[w.building[i] as Building];
+    if (!d || (best && best[1] >= d[1])) continue;
     const s = w.pos(i);
-    if (s.z === p.z && Math.abs(s.x - p.x) <= 4 && Math.abs(s.y - p.y) <= 4) return true;
+    if (s.z === p.z && Math.abs(s.x - p.x) <= 4 && Math.abs(s.y - p.y) <= 4) best = d;
   }
-  return false;
+  return best;
 }
 
-export type SkillType = 'mining' | 'woodcutting' | 'foraging' | 'construction' | 'fishing' | 'hunting' | 'crafting' | 'cooking';
-export const SKILL_TYPES: SkillType[] = ['mining', 'woodcutting', 'foraging', 'construction', 'fishing', 'hunting', 'crafting', 'cooking'];
+export type SkillType = 'mining' | 'woodcutting' | 'foraging' | 'construction' | 'fishing' | 'hunting' | 'crafting' | 'cooking' | 'farming';
+export const SKILL_TYPES: SkillType[] = ['mining', 'woodcutting', 'foraging', 'construction', 'fishing', 'hunting', 'crafting', 'cooking', 'farming'];
 
 export class SkillComponent implements Component {
-  xp: Record<SkillType, number> = { mining: 0, woodcutting: 0, foraging: 0, construction: 0, fishing: 0, hunting: 0, crafting: 0, cooking: 0 };
+  xp: Record<SkillType, number> = { mining: 0, woodcutting: 0, foraging: 0, construction: 0, fishing: 0, hunting: 0, crafting: 0, cooking: 0, farming: 0 };
   level(skill: SkillType): number {
     return Math.floor(Math.sqrt(this.xp[skill] / 10));
   }

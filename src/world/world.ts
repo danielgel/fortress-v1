@@ -13,6 +13,8 @@ export class World {
   readonly building: Uint8Array;
   /** Indices of every tile that holds a building, for quick lookups. */
   readonly buildingTiles = new Set<number>();
+  /** Days a farm plot's crop has grown (see game/farming.ts). */
+  readonly crop: Uint8Array;
   /** Surface biome per (x,y) column. */
   readonly biome: Uint8Array;
   currentZ = 0;
@@ -31,6 +33,7 @@ export class World {
     this.water = new Uint8Array(this.size);
     this.magma = new Uint8Array(this.size);
     this.building = new Uint8Array(this.size);
+    this.crop = new Uint8Array(this.size);
     this.biome = new Uint8Array(width * height);
   }
 
@@ -114,6 +117,7 @@ export class World {
   setBuilding(x: number, y: number, z: number, b: Building): void {
     const i = this.idx(x, y, z);
     this.building[i] = b;
+    this.crop[i] = 0;
     if (b === Building.NONE) this.buildingTiles.delete(i);
     else this.buildingTiles.add(i);
     if (b === Building.DOOR) this.flags[i] |= Flag.DOOR;

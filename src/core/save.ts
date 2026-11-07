@@ -8,9 +8,9 @@ import { defaultStock } from '../game/content';
 import { rleDecode, rleEncode } from './codec';
 
 const KEY = 'fortress-save-v2';
-const VERSION = 3;
+const VERSION = 4;
 /** Older versions we can still read (missing fields fall back to defaults). */
-const READABLE = [2, 3];
+const READABLE = [2, 3, 4];
 
 export function serialize(engine: GameEngine): string {
   const w = engine.world;
@@ -22,6 +22,7 @@ export function serialize(engine: GameEngine): string {
     embark: engine.embark,
     stock: engine.stock,
     orders: engine.orders,
+    alarm: engine.alarm,
     weather: engine.weather.current,
     dims: [w.width, w.height, w.depth],
     arrays: {
@@ -31,6 +32,7 @@ export function serialize(engine: GameEngine): string {
       water: rleEncode(w.water),
       magma: rleEncode(w.magma),
       building: rleEncode(w.building),
+      crop: rleEncode(w.crop),
       biome: rleEncode(w.biome),
     },
     nextEntityId: engine.entities.nextId,
@@ -63,6 +65,7 @@ export function deserialize(text: string): GameEngine {
   world.biome.set(rleDecode(d.arrays.biome, world.biome.length));
   if (d.arrays.building) world.building.set(rleDecode(d.arrays.building, world.size));
   world.indexBuildings();
+  if (d.arrays.crop) world.crop.set(rleDecode(d.arrays.crop, world.size));
 
   const engine = new GameEngine(world, d.seed);
   engine.tick = d.tick;
@@ -71,6 +74,7 @@ export function deserialize(text: string): GameEngine {
   engine.embark = d.embark;
   engine.stock = { ...defaultStock(), ...d.stock };
   engine.orders = d.orders ?? {};
+  engine.alarm = d.alarm ?? false;
   engine.weather.current = d.weather as WeatherType;
   engine.attachWorld(world);
   engine.logEntries.push(...d.log);

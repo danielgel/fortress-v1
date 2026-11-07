@@ -23,8 +23,8 @@ export class JobManager {
     if (err) return err;
     const key = ctx.world.idx(pos.x, pos.y, pos.z);
     const existing = this.byTile.get(key);
-    // tearing down a workshop takes over from whatever it was making
-    if (existing && type === JobType.REMOVE && existing.type === JobType.CRAFT) this.drop(ctx, existing);
+    // tearing down a workshop or field takes over from whatever was happening there
+    if (existing && type === JobType.REMOVE && (existing.type === JobType.CRAFT || existing.type === JobType.HARVEST)) this.drop(ctx, existing);
     else if (existing) return 'already designated';
     const job = this.newJob(type, pos, priority, false, arg);
     this.jobs.set(job.id, job);
@@ -92,11 +92,11 @@ export class JobManager {
     return !tool || dwarf.tools.includes(tool) || ctx.stock[tool] > 0;
   }
 
-  /** Give a queued job to an idle dwarf, nearest-first within priority. */
-  requestJob(ctx: GameEngine, dwarf: Entity): Job | null {
+  /** Give a queued job to an idle dwarf, nearest-first within priority. `accept` can rule some jobs out. */
+  requestJob(ctx: GameEngine, dwarf: Entity, accept?: (job: Job) => boolean): Job | null {
     const candidates: Job[] = [];
     for (const job of this.jobs.values()) {
-      if (job.worker || job.retryAt > ctx.tick) continue;
+      if (job.worker || job.retryAt > ctx.tick || (accept && !accept(job))) continue;
       const check = checkJob(ctx, job);
       if (check === 'obsolete') {
         this.drop(ctx, job);

@@ -5,6 +5,7 @@ import { JobType } from '../jobs/job';
 import { Feature, Flag, Material, type Pos } from '../world/types';
 import { WeatherType } from '../world/weather';
 import { BUILDINGS, Building } from '../game/content';
+import { cropFor } from '../game/farming';
 
 export interface ViewState {
   z: number;
@@ -48,6 +49,15 @@ function shade(hex: string, amount: number): string {
   const n = parseInt(hex.slice(1), 16);
   const c = (v: number) => Math.max(0, Math.min(255, v + amount));
   return `rgb(${c(n >> 16)},${c((n >> 8) & 255)},${c(n & 255)})`;
+}
+
+/** A farm plot by how far its crop has grown (0..1). */
+function farmCell(growth: number, z: number): Cell {
+  const bg = BUILDINGS[Building.FARM].bg!;
+  if (growth >= 1) return z === 0 ? { ch: '¥', fg: '#f0d050', bg } : { ch: '♠', fg: '#c89cff', bg };
+  if (growth >= 0.5) return { ch: '"', fg: z === 0 ? '#7ac850' : '#9a80d0', bg };
+  if (growth > 0) return { ch: ',', fg: z === 0 ? '#5a9a40' : '#7a68a8', bg };
+  return { ch: '≡', fg: '#6a5232', bg };
 }
 
 /** Draws the map as a grid of ASCII cells on a canvas. */
@@ -134,6 +144,7 @@ export class Renderer {
     if (f & Flag.STAIRS_DOWN) return { ch: '>', fg: '#ffd070', bg: z === 0 ? '#2a3a26' : '#222228' };
     if (f & Flag.STAIRS_UP) return { ch: '<', fg: '#ffd070', bg: '#222228' };
     const b = w.building[i] as Building;
+    if (b === Building.FARM) return farmCell(w.crop[i] / cropFor(z).growDays, z);
     if (b) {
       const info = BUILDINGS[b];
       return { ch: info.glyph, fg: info.fg, bg: info.bg ?? (z === 0 ? '#2e2a22' : '#24242a') };
@@ -147,8 +158,10 @@ export class Renderer {
       bg = snowy ? shade('#b9c4cc', Math.round((hash(x, y) - 0.5) * 14)) : shade(biome.color, Math.round((hash(x, y) - 0.5) * 16));
       fg = snowy ? '#8a97a1' : shade(biome.color, 40);
     } else {
-      bg = shade('#1c1c22', Math.round((hash(x, y, z) - 0.5) * 8));
-      fg = '#4a4a54';
+      // soil floors (farmable) look earthy
+      const soil = w.material[i] === Material.SOIL;
+      bg = shade(soil ? '#2a2018' : '#1c1c22', Math.round((hash(x, y, z) - 0.5) * 8));
+      fg = soil ? '#5e4a36' : '#4a4a54';
     }
     if (feat === Feature.TREE) return { ch: '♣', fg: engine.climate.isFreezing ? '#9fc2a8' : '#37b04a', bg };
     if (feat === Feature.SHRUB) return { ch: '"', fg: '#e0587a', bg };
@@ -184,8 +197,8 @@ export class Renderer {
         let cell = this.tileCell(engine, x, y, z);
 
         const job = engine.jobs.designationAt(x, y, z, engine);
-        if (job?.type === JobType.CRAFT) {
-          // a busy workshop: keep its glyph, light it up
+        if (job?.type === JobType.CRAFT || job?.type === JobType.HARVEST) {
+          // a busy workshop or field: keep its glyph, light it up
           cell = { ch: cell.ch, fg: cell.fg, bg: job.worker ? '#7a4a10' : cell.bg };
         } else if (job) {
           const g = job.type === JobType.BUILD ? BUILDINGS[job.arg as Building].glyph : JOB_GLYPH[job.type];

@@ -9,7 +9,10 @@ export type EventType =
   | 'CAVERN_DISCOVERED'
   | 'SEASON_CHANGED'
   | 'WEATHER_CHANGED'
-  | 'JOB_COMPLETED';
+  | 'JOB_COMPLETED'
+  | 'MOOD_BREAKDOWN'
+  | 'MOOD_WARNING'
+  | 'ALARM';
 
 export interface GameEvent {
   type: EventType;

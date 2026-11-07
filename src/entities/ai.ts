@@ -1,8 +1,8 @@
-import { findPathAdjacent } from '../nav/astar';
+import { findPath, findPathAdjacent } from '../nav/astar';
 import { JobStatus, JobType } from '../jobs/job';
 import type { GameEngine } from '../game/engine';
 import { Entity, EntityType } from './entity';
-import { Feature, type Pos } from '../world/types';
+import { Feature, Flag, type Pos } from '../world/types';
 import { Building } from '../game/content';
 
 const dist = (a: Pos, b: Pos) => Math.abs(a.x - b.x) + Math.abs(a.y - b.y) + Math.abs(a.z - b.z) * 6;
@@ -54,11 +54,18 @@ export function updateDwarf(ctx: GameEngine, d: Entity): void {
   if (monsters.length > 0 && fight(ctx, d, monsters)) return;
 
   const needs = d.needs!;
+  // a dwarf in a breakdown looks after itself and nothing else
+  const sulking = (d.mental?.breakdown ?? 0) > 0;
+  // with the alarm up, spear carriers drop everything and civilians leave the surface
+  const alarm = ctx.alarm && monsters.length > 0;
+  const soldier = alarm && !sulking && d.tools.includes('spear');
   if (d.job) {
     const urgent = needs.thirst > 92 || needs.hunger > 92 || needs.fatigue > 98;
-    if (urgent && !d.job.personal) {
+    const exposed = alarm && !soldier && d.job.pos.z === 0;
+    if ((urgent || sulking || soldier || exposed) && !d.job.personal) {
       ctx.jobs.release(d.job);
       d.job = null;
+      d.movement!.clear();
     } else {
       const status = d.job.update(ctx, d);
       if (status === JobStatus.COMPLETED || status === JobStatus.FAILED) {
@@ -91,9 +98,17 @@ export function updateDwarf(ctx: GameEngine, d: Entity): void {
     return;
   }
 
-  // everyone drops what they're doing to hunt invaders nearby
-  const foe = nearest(d, monsters);
-  if (foe && dist(d.pos, foe.pos) < 30) {
+  if (alarm && !soldier && d.pos.z === 0) {
+    // grab a spare spear and join the fight, or else head for shelter
+    if (!sulking && ctx.stock.spear > 0) {
+      ctx.stock.spear--;
+      d.tools.push('spear');
+    } else if (seekShelter(ctx, d)) return;
+  }
+
+  // invaders nearby: without the alarm everyone goes for them; with it, only spear carriers (at any range)
+  const foe = sulking || (alarm && !d.tools.includes('spear')) ? null : nearest(d, monsters);
+  if (foe && (alarm || dist(d.pos, foe.pos) < 30)) {
     const path = findPathAdjacent(ctx.world, d.pos, foe.pos, { maxNodes: 6000 });
     if (path) {
       // grab a spear from the stockpile on the way out
@@ -107,10 +122,12 @@ export function updateDwarf(ctx: GameEngine, d: Entity): void {
     }
   }
 
-  if (ctx.stock.food + ctx.stock.meals < 12) autoForage(ctx, d);
-
-  const queued = ctx.jobs.requestJob(ctx, d);
-  if (queued) return;
+  if (!sulking) {
+    if (ctx.stock.food + ctx.stock.meals < 12) autoForage(ctx, d);
+    // during the alarm spear carriers stand guard and civilians only take work below ground
+    const accept = alarm ? (d.tools.includes('spear') ? () => false : (j: { pos: Pos }) => j.pos.z > 0) : undefined;
+    if (ctx.jobs.requestJob(ctx, d, accept)) return;
+  }
 
   if (ctx.rng.chance(0.25)) {
     const spot = randomWalkable(ctx, d.pos, 6);
@@ -120,6 +137,28 @@ export function updateDwarf(ctx: GameEngine, d: Entity): void {
       d.job = wander;
     }
   }
+}
+
+/** Walk to the nearest floor below ground. False if there's no way down. */
+function seekShelter(ctx: GameEngine, d: Entity): boolean {
+  const w = ctx.world;
+  let stairs: Pos | null = null;
+  let best = Infinity;
+  for (let y = 0; y < w.height; y++)
+    for (let x = 0; x < w.width; x++) {
+      if (!(w.flags[w.idx(x, y, 0)] & Flag.STAIRS_DOWN)) continue;
+      const dd = Math.abs(x - d.pos.x) + Math.abs(y - d.pos.y);
+      if (dd < best) {
+        stairs = { x, y, z: 1 };
+        best = dd;
+      }
+    }
+  if (!stairs) return false;
+  const path = findPath(w, d.pos, (x, y, z) => z > 0 && w.walkable(x, y, z), stairs, { maxNodes: 8000 });
+  if (!path) return false;
+  d.movement!.setPath(path);
+  d.timer = 0;
+  return true;
 }
 
 function pickPersonalJob(ctx: GameEngine, d: Entity) {
@@ -199,7 +238,8 @@ function wander(ctx: GameEngine, e: Entity, radius: number): void {
 
 /** Hungry colony: idle dwarves mark nearby shrubs for gathering on their own. */
 function autoForage(ctx: GameEngine, d: Entity): void {
-  if (ctx.jobs.pendingCount >= 4) return;
+  // only our own backlog counts: farm plots waiting for harvest must not stop foraging
+  if (ctx.jobs.ofType(JobType.GATHER).filter((j) => !j.worker).length >= 4) return;
   const z = d.pos.z;
   const w = ctx.world;
   const R = 22;
