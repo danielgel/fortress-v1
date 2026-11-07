@@ -54,11 +54,14 @@ export function updateDwarf(ctx: GameEngine, d: Entity): void {
   if (monsters.length > 0 && fight(ctx, d, monsters)) return;
 
   const needs = d.needs!;
+  // a dwarf in a breakdown looks after itself and nothing else
+  const sulking = (d.mental?.breakdown ?? 0) > 0;
   if (d.job) {
     const urgent = needs.thirst > 92 || needs.hunger > 92 || needs.fatigue > 98;
-    if (urgent && !d.job.personal) {
+    if ((urgent || sulking) && !d.job.personal) {
       ctx.jobs.release(d.job);
       d.job = null;
+      d.movement!.clear();
     } else {
       const status = d.job.update(ctx, d);
       if (status === JobStatus.COMPLETED || status === JobStatus.FAILED) {
@@ -92,7 +95,7 @@ export function updateDwarf(ctx: GameEngine, d: Entity): void {
   }
 
   // everyone drops what they're doing to hunt invaders nearby
-  const foe = nearest(d, monsters);
+  const foe = sulking ? null : nearest(d, monsters);
   if (foe && dist(d.pos, foe.pos) < 30) {
     const path = findPathAdjacent(ctx.world, d.pos, foe.pos, { maxNodes: 6000 });
     if (path) {
@@ -107,10 +110,10 @@ export function updateDwarf(ctx: GameEngine, d: Entity): void {
     }
   }
 
-  if (ctx.stock.food + ctx.stock.meals < 12) autoForage(ctx, d);
-
-  const queued = ctx.jobs.requestJob(ctx, d);
-  if (queued) return;
+  if (!sulking) {
+    if (ctx.stock.food + ctx.stock.meals < 12) autoForage(ctx, d);
+    if (ctx.jobs.requestJob(ctx, d)) return;
+  }
 
   if (ctx.rng.chance(0.25)) {
     const spot = randomWalkable(ctx, d.pos, 6);

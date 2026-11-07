@@ -9,6 +9,7 @@ import { Feature, Flag, Material } from '../src/world/types';
 import { ClimateType, RegionClimate } from '../src/world/climate';
 import { TICKS_PER_DAY, DAYS_PER_SEASON, Season } from '../src/world/calendar';
 import { CAVE_CROP, SURFACE_CROP } from '../src/game/farming';
+import { BREAKDOWN_STRESS, BREAKDOWN_TICKS } from '../src/entities/components';
 import { Building, WALL } from '../src/game/content';
 import { addOrder } from '../src/game/production';
 import { NO_DOORS } from '../src/nav/astar';
@@ -524,5 +525,58 @@ describe('farming', () => {
     expect(loaded.world.crop.every((v) => v === 0)).toBe(true);
     expect(loaded.entities.dwarves[0].skills!.xp.farming).toBe(0);
     run(loaded, 100);
+  });
+});
+
+describe('breakdowns', () => {
+  it('a stressed, unhappy dwarf drops their job, sulks, then recovers and goes back to work', () => {
+    const e = GameEngine.create(small, 1);
+    clearing(e);
+    const d = e.entities.dwarves[0];
+    const m = d.mental!;
+    d.needs!.hunger = d.needs!.thirst = d.needs!.fatigue = 0;
+    const { x, y } = e.embark;
+    const job = e.jobs.designate(e, JobType.STAIRS, { x: x + 2, y, z: 0 });
+    if (typeof job === 'string') throw new Error(job);
+    run(e, 20);
+    expect(d.job).toBe(job);
+
+    m.happiness = 10;
+    m.stress = BREAKDOWN_STRESS;
+    run(e, 1);
+    expect(m.breakdown).toBeGreaterThan(0);
+    expect(d.job).toBeNull();
+    expect(job.worker).toBeNull();
+    expect(e.logEntries.at(-1)!.type).toBe('MOOD_BREAKDOWN');
+    run(e, BREAKDOWN_TICKS / 2);
+    expect(job.worker).toBeNull(); // still refusing work
+
+    run(e, BREAKDOWN_TICKS / 2);
+    expect(m.breakdown).toBe(0);
+    expect(m.stress).toBeLessThan(BREAKDOWN_STRESS);
+    run(e, 300);
+    expect(e.world.has(x + 2, y, 0, Flag.STAIRS_DOWN)).toBe(true);
+  });
+
+  it('unhappiness builds stress, contentment eases it', () => {
+    const e = GameEngine.create(small, 1);
+    const m = e.entities.dwarves[0].mental!;
+    const n = e.entities.dwarves[0].needs!;
+    m.happiness = 10;
+    m.stress = 20;
+    n.hunger = n.thirst = n.fatigue = 0;
+    run(e, 100);
+    expect(m.stress).toBeGreaterThan(21);
+    m.happiness = 60;
+    const s = m.stress;
+    run(e, 100);
+    expect(m.stress).toBeLessThan(s);
+  });
+
+  it('a well-kept colony goes a season without a breakdown', () => {
+    const e = GameEngine.create(small);
+    run(e, TICKS_PER_DAY * DAYS_PER_SEASON);
+    expect(e.logEntries.some((l) => l.type === 'MOOD_BREAKDOWN')).toBe(false);
+    expect(Math.max(...e.entities.dwarves.map((d) => d.mental!.stress))).toBeLessThan(BREAKDOWN_STRESS / 2);
   });
 });

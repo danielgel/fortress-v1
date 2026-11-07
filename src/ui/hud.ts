@@ -4,7 +4,7 @@ import { WEATHER_NAMES } from '../world/weather';
 import { EntityType, type Entity } from '../entities/entity';
 import { JOB_LABELS, JobType, type Job } from '../jobs/job';
 import { checkJob } from '../jobs/recipes';
-import { SKILL_TYPES } from '../entities/components';
+import { SKILL_TYPES, UNHAPPY } from '../entities/components';
 import { SPEED_TPS } from '../core/clock';
 import { BUILDINGS, BUILD_MENU, Building, RECIPES, RESOURCE_GROUPS, canAfford, describeCost, type ToolKind } from '../game/content';
 import { wanted } from '../game/production';
@@ -124,7 +124,7 @@ export class Hud {
         const n = d.needs!;
         const p = d.physical!;
         const m = d.mental!;
-        const job = d.job ? JOB_LABELS[d.job.type] : 'idle';
+        const job = d.job ? JOB_LABELS[d.job.type] : m.breakdown ? 'sulking' : 'idle';
         const sel = this.ctl.selected?.id === d.id ? ' sel' : '';
         const tools = d.tools.length ? `<span class="tools" title="Carrying">${d.tools.map((t) => TOOL_LABEL[t]).join(' ')}</span>` : '';
         return `<li class="dwarf${sel}" data-id="${d.id}"><div class="row"><b>${esc(d.name)}</b>${tools}<span class="muted job">${job}</span></div>
@@ -207,7 +207,7 @@ export class Hud {
       n.thirst > 60 ? needWord(n.thirst, ['', 'thirsty', 'parched']) : '',
       n.fatigue > 60 ? needWord(n.fatigue, ['', 'tired', 'exhausted']) : '',
     ].filter(Boolean);
-    const mood = m.happiness < 25 ? '<span class="bad">miserable (works slowly)</span>' : m.happiness > 70 ? 'happy (works faster)' : 'content';
+    const mood = m.breakdown ? '<span class="bad">sulking (refuses to work)</span>' : m.happiness < UNHAPPY ? '<span class="bad">miserable (works slowly)</span>' : m.happiness > 70 ? 'happy (works faster)' : 'content';
     const skills = SKILL_TYPES.filter((k) => d.skills!.level(k) > 0).map((k) => `${k} ${d.skills!.level(k)}`);
     return `<div class="detail"><b>${esc(d.name)}</b> is ${mood}${feelings.length ? `, ${feelings.join(', ')}` : ''}.
       ${m.thought ? `<br><span class="muted">Recently ${esc(m.thought)}.</span>` : ''}
@@ -250,7 +250,7 @@ export class Hud {
     this.lastLog = last;
     const important = e.logEntries.filter((l) => l.type !== 'WEATHER_CHANGED').slice(-40).reverse();
     $('log').innerHTML = important
-      .map((l) => `<li class="${l.type === 'DWARF_DIED' || l.type === 'INVASION_STARTED' ? 'bad' : ''}"><span class="muted">d${Math.floor(l.tick / 600) + 1}</span> ${esc(l.text)}</li>`)
+      .map((l) => `<li class="${l.type === 'DWARF_DIED' || l.type === 'INVASION_STARTED' || l.type === 'MOOD_BREAKDOWN' ? 'bad' : ''}"><span class="muted">d${Math.floor(l.tick / 600) + 1}</span> ${esc(l.text)}</li>`)
       .join('');
   }
 }

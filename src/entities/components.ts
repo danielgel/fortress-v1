@@ -25,9 +25,18 @@ export class PhysicalComponent implements Component {
   }
 }
 
+/** Below this happiness dwarves work slowly, and stress builds up. */
+export const UNHAPPY = 25;
+/** Stress at which a dwarf has a breakdown. */
+export const BREAKDOWN_STRESS = 75;
+/** How long a breakdown lasts (half a day). */
+export const BREAKDOWN_TICKS = 300;
+
 export class MentalComponent implements Component {
   /** Most recent thing that changed this dwarf's mood. */
   thought = '';
+  /** Ticks left of a breakdown: the dwarf refuses work but still eats, drinks and sleeps. */
+  breakdown = 0;
   constructor(
     public happiness = 60,
     public stress = 0,
@@ -37,8 +46,18 @@ export class MentalComponent implements Component {
     if (!n) return;
     // unmet needs sour the mood; otherwise it drifts back towards content (50)
     const misery = Math.max(0, n.hunger - 60) + Math.max(0, n.thirst - 60) + Math.max(0, n.fatigue - 70);
+    const unhappy = this.happiness < UNHAPPY;
     this.happiness = clamp(this.happiness + (misery > 0 ? -misery / 4000 : (50 - this.happiness) * 0.0004));
-    this.stress = clamp(this.stress + (misery > 0 ? misery / 6000 : -0.01));
+    // stress builds from unmet needs and from staying unhappy, and eases off otherwise
+    this.stress = clamp(this.stress + misery / 6000 + (unhappy ? 0.025 : misery > 0 ? 0 : -0.01));
+    if (this.breakdown > 0) {
+      if (--this.breakdown === 0) this.feel('calmed down after a sulk', 6);
+    } else if (this.stress >= BREAKDOWN_STRESS) {
+      this.breakdown = BREAKDOWN_TICKS;
+      this.stress -= 40;
+      this.thought = 'is sulking';
+      ctx.log('MOOD_BREAKDOWN', `${owner.name} can't take any more and stops working for a while.`);
+    }
     if ((ctx.tick + owner.id) % 60 === 0 && nearStatue(ctx, owner.pos)) this.feel('admired a statue', 1.5);
   }
   /** Something nice (or not) happened. */
@@ -48,7 +67,7 @@ export class MentalComponent implements Component {
   }
   /** Work-time multiplier: miserable dwarves dawdle, happy ones hurry. */
   get workFactor(): number {
-    return this.happiness < 25 ? 1.4 : this.happiness > 70 ? 0.85 : 1;
+    return this.happiness < UNHAPPY ? 1.4 : this.happiness > 70 ? 0.85 : 1;
   }
 }
 
